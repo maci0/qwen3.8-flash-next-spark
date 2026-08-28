@@ -118,6 +118,6 @@ Re-verified against the [RadixArk NVFP4 card](https://huggingface.co/RadixArk/Qw
 
 ## 12. GLM-5.3-Flash on 2× DGX Spark
 
-Moved to its own file: **[`docs/glm-5.3-flash.md`](glm-5.3-flash.md)** — specs, precision sizes, 2×Spark memory math, runtime status (SGLang/vLLM/llama.cpp), precedents, bottom line.
+Moved to its own file: **[`glm/glm-5.3-flash.md`](../glm/glm-5.3-flash.md)** — specs, precision sizes, 2×Spark memory math, runtime status (SGLang/vLLM/llama.cpp), precedents, bottom line.
 
 TL;DR: **runs on 2× Spark TP2 with 4-bit-class weights** (NVFP4 ~97 GB/node or GGUF Q4_K_XL), proven day-0 at 24.7–30.3 t/s; FP8 needs 4× Spark; single Spark only fits lossy 1-bit. Conflicts with the Qwen Plan A (both need TP2 on both nodes).
