@@ -1,0 +1,31 @@
+# Scripts
+
+All scripts run on a Spark (aarch64) under `~/qwen3.8-flash-next/`. Detached runs use
+`setsid nohup bash <script> > <log> 2>&1 < /dev/null &` so they survive SSH disconnects.
+Every script is idempotent-ish and safe to re-run.
+
+| Script | Purpose |
+|---|---|
+| `spark_download.sh` | venv + `hf` CLI; downloads `unsloth/Qwen3.8-Flash-Next-GGUF` `UD-Q4_K_XL` (111.3 GB, 4 shards) → `models/unsloth/Qwen3.8-Flash-Next-GGUF/UD-Q4_K_XL/`. |
+| `spark_build.sh` | Clones llama.cpp, checks out **PR #27742** (`qwen4exp` support), builds CUDA sm_121 (`llama-cli`, `llama-server`, `llama-mtmd-cli`, `llama-gguf-split`). |
+| `spark_smoke.sh` | `llama-cli` smoke test: `-ngl 0` (safe CPU/mmap) + `--no-warmup`, 64-token completion, prints timing. |
+| `spark_serve.sh` | **Recommended daily server**: `-ngl 999 -ot "per_layer_token_embd.weight=CPU"`, 16K ctx, 4 slots, no MTP. ~25 t/s, ~110 G used. |
+| `spark_serve_1m.sh` | 1M ctx, 1 slot, **iq4_nl KV**, YaRN factor 4. ~1 G headroom (knife-edge). |
+| `spark_serve_512k.sh` | 512K ctx, 1 slot, **q8_0 (FP8) KV**, YaRN factor 2. ~7 G headroom — safe long-context choice. |
+| `spark_serve_800k.sh` | 800K ctx, 1 slot, YaRN factor 3.1. **q8_0 (FP8) KV does NOT fit** (swap-thrash, verified); the `_iq4nl` variant fits (~1 G headroom, verified serving). |
+| `spark_serve_700k.sh` | 700K ctx, 1 slot, YaRN factor 2.7. **q8_0 (FP8) does NOT fit** (swap); **`_iq4nl` variant fits comfortably** (~4–5 G headroom, verified serving) — best big-ctx config. |
+| `spark_serve_ngram.sh` | 16K×4 + `--spec-type ngram-mod` — measured **no speedup** (not engaged); kept for reference. |
+
+## Switching servers
+
+```bash
+ssh spark1 'pkill -f "[l]lama-server"; sleep 3; setsid nohup bash /home/maci/qwen3.8-flash-next/spark_serve_512k.sh > /home/maci/qwen3.8-flash-next/serve.log 2>&1 < /dev/null &'
+```
+
+## Key flags / knobs
+
+- PLE-on-disk (the "ngrams streamed from disk" mechanism): `-ot "per_layer_token_embd.weight=CPU"` (tensor name verified in the GGUF).
+- KV quantization: `--cache-type-k/v {f16,bf16,q8_0,iq4_nl,...}` (FP8 = `q8_0`).
+- Context: `--ctx-size N --override-kv qwen4exp.context_length=int:N --rope-scaling yarn --rope-scale F --yarn-orig-ctx 262144` (F=2 → 512K, F=4 → 1M).
+- Skip the slow warmup: `--no-warmup`.
+- MTP: **not available** on the GGUF stack — see `docs/plan.md`.

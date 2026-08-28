@@ -1,0 +1,2 @@
+# Local Python venv (desktop-side tooling only; model work happens on the Sparks)
+.venv/
