@@ -31,8 +31,8 @@ CONTEXT_LENGTH=1048576          # 1M ctx (YaRN factor 4 injected)
 CHUNKED_PREFILL_SIZE=1024       # must stay 1024 at 1M
 SPEC_STEPS=3  SPEC_TOPK=1  SPEC_DRAFT=4   # NEXTN; steps 4 impossible
 NVFP4_KV_CACHE=0                # 0 = fp8_e4m3 (faster); 1 = NVFP4 KV (bigger pool)
-EXTRA_ARGS=--speculative-attention-mode decode
-NCCL_MAX_NCHANNELS=4  NCCL_MIN_NCHANNELS=4  NCCL_CUMEM_ENABLE=0
+EXTRA_ARGS=--speculative-attention-mode decode --enable-linear-replayssm-spec
+NCCL_MAX_NCHANNELS=8  NCCL_MIN_NCHANNELS=8  NCCL_CUMEM_ENABLE=0
 NCCL_IGNORE_CPU_AFFINITY=1  TORCH_NCCL_ASYNC_ERROR_HANDLING=1
 ```
 
@@ -66,7 +66,8 @@ First boot: pulls base image (~30 GB), builds patched image on both nodes, downl
 |---|---|---|---|
 | NVFP4 KV | ~36 t/s | — | — |
 | fp8_e4m3 KV | ~38–42 t/s | 138.6 tok/s | 15.8 s |
-| **fp8 + `--speculative-attention-mode decode` (FINAL)** | **~40–44 t/s** | **147.6–155.2 tok/s** (257 total) | 12.7–14.3 s |
+| fp8 + spec-attn-decode | ~40–44 t/s | 147.6–155.2 tok/s | 12.7–14.3 s |
+| **+ replayssm-spec (FINAL)** | **~81–103 t/s** | **183–234 tok/s (noisy band)** | 9.4–11.9 s |
 
 More in [`docs/sglang-perf.md`](sglang-perf.md).
 

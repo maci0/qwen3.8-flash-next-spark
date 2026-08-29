@@ -32,11 +32,29 @@ EXTRA_ARGS=--disable-prefill-cuda-graph --cuda-graph-max-bs 28 --disable-cuda-gr
 | Config | Aggregate output (24 conc) | E2E mean | Single-stream |
 |---|---|---|---|
 | fp8_e4m3 KV (baseline) | 138.6 tok/s | 15.8 s | ~38–42 t/s |
-| **fp8_e4m3 KV + `--speculative-attention-mode decode` (FINAL)** | **147.6–155.2 tok/s** | **12.7–14.3 s** | **~40–44 t/s** |
+| fp8 + `--speculative-attention-mode decode` | 147.6–155.2 tok/s | 12.7–14.3 s | ~40–44 t/s |
+| **+ `--enable-linear-replayssm-spec` (FINAL)** | **183–234 tok/s (noisy band)** | 9.4–11.9 s | **~81–103 t/s** |
+
+## Lever A/B series (2026-08-30, each = base + one lever, 24 concurrent)
+
+| Lever | Aggregate (24c) | E2E | Verdict |
+|---|---|---|---|
+| baseline (spec-attn-decode) | 147.6–155.2 | 12.7–14.3 | — |
+| `NCCL_MAX/MIN_NCHANNELS` 4→8 | 150.9 | 12.8 | neutral (kept, harmless) |
+| `--schedule-conservativeness 0.5` | 162.1 | 13.9 | ✅ helps alone |
+| `--sampling-backend pytorch` | 163.4 | 12.4 | ✅ helps alone |
+| **`--enable-linear-replayssm-spec`** | **183–234** | 9.4–11.9 | ✅✅ **winner** (spec-verify memory 11.5→1.8 GB pays off on decode) |
+| all three combined | 193.2 | 10.6 | ❌ **negative interaction** — sched05/pytorch help *without* replayssm but hurt *with* it (233.6 → 193.2) |
+| `--enable-overlap-schedule` | — | — | ❌ **fails to boot** (recipe's PLE two-batch constraint confirmed) |
+| dual-rail NCCL | — | — | ❌ recipe preflight is single-device (reverted) |
+
+Run-to-run variance on this box is ±25% (same config re-measured 183–234); treat aggregate numbers as a band. Single-stream is prompt-dependent (the 600-tok short-prompt series is internally consistent).
+
+**FINAL config**: fp8_e4m3 KV + `--speculative-attention-mode decode --enable-linear-replayssm-spec` + NCCL channels 8, single CX7 rail, NEXTN 3/1/4.
 
 Dual-rail NCCL (both CX7 rails) was attempted — the recipe's preflight only accepts a single RoCE device, so it was reverted (not worth patching for an unverified ~2%). `--enable-torch-compile` stays off; NEXTN 3/1/4 is the max chain (steps 4 rejected).
 
-Pool at 1M: NVFP4 KV 2,056,576 · fp8_e4m3 1,332,352 · fp8+spec-attn-decode 1,254,528 (all >1M ✓). NVFP4 KV gives max headroom; fp8 is faster — flip = one `.env` line.
+Pool at 1M: NVFP4 KV 2,056,576 · fp8_e4m3 1,332,352 · fp8+spec-attn-decode 1,254,528 · **final (replayssm) 1,232,832** (all >1M ✓). NVFP4 KV gives max headroom; fp8 is faster — flip = one `.env` line.
 
 ## A/B matrix (run on our box once booted; all unmeasured on the patched Triton-fallback stack)
 

@@ -30,4 +30,15 @@ ssh spark1 'pkill -f "[l]lama-server"; sleep 3; setsid nohup bash ~/qwen3.8-flas
 - KV quantization: `--cache-type-k/v {f16,bf16,q8_0,iq4_nl,...}` (FP8 = `q8_0`).
 - Context: `--ctx-size N --override-kv qwen4exp.context_length=int:N --rope-scaling yarn --rope-scale F --yarn-orig-ctx 262144` (F=2 → 512K, F=4 → 1M).
 - Skip the slow warmup: `--no-warmup`.
-- MTP: **not available** on the GGUF stack — see `docs/plan.md`.
+- MTP on the GGUF stack: **available** via llama.cpp PR #27836 + grafted head — see `docs/plan.md` (MTP section).
+
+## SGLang NVFP4 TP2 deployment scripts
+
+| Script | Purpose |
+|---|---|
+| `sglang/.env.example` | The working `.env` for the SGLang NVFP4 TP2 deployment (1M ctx, fp8/NVFP4 KV, NEXTN, NCCL tuning). |
+| `patch_miaai_rsync.py` | Patches the MiaAI recipe's weight rsync to exclude the root-owned HF `trees/` cache dir (rsync code-23 fix). |
+| `sglang_ab.sh` | One A/B cycle: stop → drop caches (privileged docker, both nodes) → set `EXTRA_ARGS` → boot → `bench_serving` + timed single-stream. Usage: `sglang_ab.sh <label> "<EXTRA_ARGS>"`. |
+| `sglang_ab_all.sh` | Runs a sequence of A/B cycles with clean attribution (base + one lever each). |
+
+Full SGLang runbook: `docs/sglang-deployment.md` · perf results: `docs/sglang-perf.md`.

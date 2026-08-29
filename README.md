@@ -25,7 +25,7 @@ Serving **Qwen3.8-Flash-Next** (`qwen4_exp` architecture, ~180B-param multimodal
 |---|---|---|---|
 | NVFP4 KV | ~36 t/s | — | — |
 | fp8_e4m3 KV | ~38–42 t/s | 138.6 tok/s | 15.8 s |
-| **fp8 + `--speculative-attention-mode decode` (final)** | **~40–44 t/s** | **147.6–155.2 tok/s** | 12.7–14.3 s |
+| **+ replayssm-spec (final)** | **~81–103 t/s** | **183–234 tok/s** | 9.4–11.9 s |
 
 **llama.cpp GGUF** (1× Spark, 2026-08-29):
 

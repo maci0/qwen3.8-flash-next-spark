@@ -218,3 +218,19 @@ Full doc set for the SGLang deployment published:
 - **`docs/sglang-perf.md`** — final A/B numbers (fp8 + spec-attn-mode decode = 147.6–155.2 agg / ~40–44 t/s single; NVFP4-KV 2.06M pool option).
 
 Live state at close: SGLang TP2 up on both Sparks (`spark1:8888`, `max_model_len=1,048,576`, pool 1,254,528 fp8), 105/121 GB used per node, 16 GB available each.
+
+
+## Phase 17 — Lever A/B series complete (2026-08-30)
+
+Tested all remaining perf levers (each = base config + one lever, 24 concurrent, same bench):
+
+| Lever | Aggregate (24c) | Verdict |
+|---|---|---|
+| `NCCL_MAX/MIN_NCHANNELS` 4→8 | 150.9 | neutral (kept) |
+| `--schedule-conservativeness 0.5` | 162.1 | ✅ helps alone |
+| `--sampling-backend pytorch` | 163.4 | ✅ helps alone |
+| **`--enable-linear-replayssm-spec`** | **183–234** | ✅✅ **winner** |
+| all three combined | 193.2 | ❌ negative interaction |
+| `--enable-overlap-schedule` | fails to boot | ❌ PLE constraint confirmed |
+
+**Final running config**: fp8 KV + `--speculative-attention-mode decode --enable-linear-replayssm-spec` + NCCL8. Pool 1,232,832 (1M ✓). Single-stream up to ~81–103 t/s; aggregate band 183–234 (run-to-run variance ±25%). Scripts `scripts/sglang_ab.sh` / `scripts/sglang_ab_all.sh` reproduce the A/B harness. Full table in `docs/sglang-perf.md`.
