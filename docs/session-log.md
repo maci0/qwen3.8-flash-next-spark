@@ -164,3 +164,19 @@ MTP helps code/structured, ~neutral on prose — matches the community pattern (
 ## Phase 12b — second UMA softlock & auto-reboot (2026-08-29)
 
 After the tuning sweep, restarting the MTP server wedged the box again: ICMP responded (0.1 ms), sshd couldn't send its banner, `spark2` unaffected. Auto-rebooted after ~10 min (`up 1 min`). Trigger pattern: server restart while the page cache is full of the model + a fresh ~100 GB CUDA allocation on the 121 GiB pool. Everything survived (NVMe); MTP server relaunched cleanly (113/121 G used, 8 G avail, health OK). Recurring failure mode on UMA — keep ≥8 GB headroom and expect occasional reboot-on-restart; `drop_caches` before load would help but needs root (no sudo on maci).
+
+
+## Phase 13 — SGLang TP2 deployment (goal mode) — status 2026-08-29
+
+**Staged on `spark1` (all done):** MiaAI recipe (`~/Qwen3.8-Flash-Next-Dual-DGX-Sparks`) cloned + reviewed; `.env` configured (CX rail 10.0.1.1/10.0.1.2, `enp1s0f1np1`/`rocep1s0f1` both, 1M ctx YaRN, NVFP4 KV, mem-fraction 0.82, NEXTN 3/1/4); patched image `qwen38flashnext-dspark:local` built on both nodes; NVFP4 weights (135.25 GB, 419 files, public repo) downloaded + verified on head and rsync'd to worker at ~350 MB/s over the CX7 rail. Two local fixes: `start.sh` patched to exclude the root-owned HF `trees/` cache dir from the weight rsync; page cache can be dropped without sudo via `docker run --rm --privileged --pid=host lmsysorg/sglang:qwen38flashnext sh -c 'sync && echo 3 > /proc/sys/vm/drop_caches'` (verified on spark1: 112 GB → 0).
+
+**Blocker:** `spark2` wedged (UMA softlock — kernel pings at 0.3 ms, sshd banner times out on both LAN and CX IPs, no auto-reboot after 25+ min). TP2 cannot boot without it → needs a **physical power cycle**.
+
+**Resume (one command after power cycle):**
+```bash
+# on spark1: drop caches on both, then boot
+docker run --rm --privileged --pid=host lmsysorg/sglang:qwen38flashnext sh -c 'sync && echo 3 > /proc/sys/vm/drop_caches'
+ssh spark2 'docker run --rm --privileged --pid=host lmsysorg/sglang:qwen38flashnext sh -c "sync && echo 3 > /proc/sys/vm/drop_caches"'
+cd ~/Qwen3.8-Flash-Next-Dual-DGX-Sparks && ./start.sh serve   # idempotent; weights already synced
+```
+Then validate: `:8888` health, boot-log `max_total_num_tokens` ≥ 1M, throughput, NVFP4 KV pool.
