@@ -191,3 +191,17 @@ Then validate: `:8888` health, boot-log `max_total_num_tokens` ≥ 1M, throughpu
 - Blocker resolved: spark2's vLLM DeepSeek-V4 container was stopped (`docker stop vllm-ds4-0731`, reversible) to free the node; page caches dropped via privileged docker (`docker run --rm --privileged --pid=host lmsysorg/sglang:qwen38flashnext sh -c 'sync && echo 3 > /proc/sys/vm/drop_caches'`) — no sudo needed.
 - Currently running: **fp8_e4m3 KV** (best measured performance). NVFP4 KV = one `.env` flip (`NVFP4_KV_CACHE=1`) for max KV headroom (2M pool).
 - Remaining A/B candidates (docs/sglang-perf.md): `--enable-linear-replayssm-spec`, `--speculative-attention-mode decode`, `--sampling-backend pytorch`, dual-rail NCCL (10.0.2.x rail), `--enable-overlap-schedule`.
+
+
+## Phase 15 — Performance tuning complete (2026-08-30)
+
+A/B results on the patched SM121 image, TP2 @1M:
+
+| Change | Aggregate output (24c) | E2E | Single-stream | Kept? |
+|---|---|---|---|---|
+| baseline (NVFP4 KV) | — | — | ~36 t/s | — |
+| fp8_e4m3 KV | 138.6 tok/s | 15.8 s | ~38–42 t/s | ✅ |
+| + `--speculative-attention-mode decode` | **147.6–155.2** | 12.7–14.3 s | **~40–44 t/s** | ✅ **FINAL** |
+| dual-rail NCCL (both CX7 rails) | — | — | — | ❌ reverted (recipe preflight is single-device) |
+
+**Final running config**: fp8_e4m3 KV + spec-attn-mode decode + NEXTN 3/1/4 + NCCL channel tuning, single CX7 rail, `qwen38flashnext-dspark:local` image on both nodes, API `http://spark1:8888`, `max_model_len=1,048,576`, pool 1,254,528 tokens. NVFP4 KV (2,056,576 pool) is one `.env` flip away (`NVFP4_KV_CACHE=1`).

@@ -29,12 +29,14 @@ EXTRA_ARGS=--disable-prefill-cuda-graph --cuda-graph-max-bs 28 --disable-cuda-gr
 
 ## Measured on our box (2026-08-30, TP2 @1M, patched image)
 
-| KV dtype | Pool (tokens) | Single-stream | Verdict |
+| Config | Aggregate output (24 conc) | E2E mean | Single-stream |
 |---|---|---|---|
-| NVFP4 (`NVFP4_KV_CACHE=1`) | 2,056,576 | ~36 t/s | max KV headroom (user's original ask) |
-| **fp8_e4m3 (`NVFP4_KV_CACHE=0`)** | 1,332,352 | **~38–42 t/s** | faster decode; 1M still guaranteed |
+| fp8_e4m3 KV (baseline) | 138.6 tok/s | 15.8 s | ~38–42 t/s |
+| **fp8_e4m3 KV + `--speculative-attention-mode decode` (FINAL)** | **147.6–155.2 tok/s** | **12.7–14.3 s** | **~40–44 t/s** |
 
-Both keep the 1M requirement (pool > 1,048,576). fp8 is ~10–17% faster on SM121; NVFP4 gives 1.5× the pool. Flip = one `.env` line + reboot.
+Dual-rail NCCL (both CX7 rails) was attempted — the recipe's preflight only accepts a single RoCE device, so it was reverted (not worth patching for an unverified ~2%). `--enable-torch-compile` stays off; NEXTN 3/1/4 is the max chain (steps 4 rejected).
+
+Pool at 1M: NVFP4 KV 2,056,576 · fp8_e4m3 1,332,352 · fp8+spec-attn-decode 1,254,528 (all >1M ✓). NVFP4 KV gives max headroom; fp8 is faster — flip = one `.env` line.
 
 ## A/B matrix (run on our box once booted; all unmeasured on the patched Triton-fallback stack)
 
