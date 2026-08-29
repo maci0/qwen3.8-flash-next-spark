@@ -9,7 +9,8 @@ Every script is idempotent-ish and safe to re-run.
 | `spark_download.sh` | venv + `hf` CLI; downloads `unsloth/Qwen3.8-Flash-Next-GGUF` `UD-Q4_K_XL` (111.3 GB, 4 shards) → `models/unsloth/Qwen3.8-Flash-Next-GGUF/UD-Q4_K_XL/`. |
 | `spark_build.sh` | Clones llama.cpp, checks out **PR #27742** (`qwen4exp` support), builds CUDA sm_121 (`llama-cli`, `llama-server`, `llama-mtmd-cli`, `llama-gguf-split`). |
 | `spark_smoke.sh` | `llama-cli` smoke test: `-ngl 0` (safe CPU/mmap) + `--no-warmup`, 64-token completion, prints timing. |
-| `spark_serve.sh` | **Recommended daily server**: `-ngl 999 -ot "per_layer_token_embd.weight=CPU"`, 16K ctx, 4 slots, no MTP. ~25 t/s, ~110 G used. |
+| `spark_serve.sh` | 16K ctx, 4 slots, no MTP, ~25 t/s, ~110 G used. (Pre-MTP daily config.) |
+| `spark_serve_mtp.sh` | **Current serving config** — see above (PR #27836 + grafted head, 16K×1, f16 KV, `draft-mtp` n-max 3). |
 | `spark_serve_1m.sh` | 1M ctx, 1 slot, **iq4_nl KV**, YaRN factor 4. ~1 G headroom (knife-edge). |
 | `spark_serve_512k.sh` | 512K ctx, 1 slot, **q8_0 (FP8) KV**, YaRN factor 2. ~7 G headroom — safe long-context choice. |
 | `spark_serve_800k.sh` | 800K ctx, 1 slot, YaRN factor 3.1. **q8_0 (FP8) KV does NOT fit** (swap-thrash, verified); the `_iq4nl` variant fits (~1 G headroom, verified serving). |

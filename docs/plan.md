@@ -88,7 +88,7 @@ Qwen3.8-27B-class NVFP4 (fits one Spark; ~38 tok/s with DFlash2/DSpark draft). O
 | Smoke test (`scripts/spark_smoke.sh`) | spark1 | ✅ PASSED — thinking trace + `4`, 7.9 t/s (CPU/mmap) |
 | **Serve: GPU experts + PLE on disk** (`spark_serve.sh`) | spark1 | ✅ **live at `http://192.168.0.211:8080`** — ~25 t/s, ~110 G/10 G |
 | 1M ctx (iq4_nl KV) / 512K (q8_0 KV) | spark1 | ✅ tested / script ready |
-| MTP (spec decode) | — | ❌ not possible on GGUF stack (head absent) — see MTP section |
+| MTP (spec decode) | spark1 | ✅ **done 2026-08-29** — PR #27836 build + grafted MTP head; code 27.4 → 32.1 t/s (+17%), prose neutral |
 | Plan A: SGLang NVFP4 2×Spark TP2 | spark2+both | ⏳ decision point |
 
 Full chronological record: [`docs/session-log.md`](session-log.md). Script inventory: [`scripts/README.md`](../scripts/README.md).
@@ -99,7 +99,8 @@ Full chronological record: [`docs/session-log.md`](session-log.md). Script inven
 |---|---|---|
 | Full GPU offload | `-ngl 1024` | ❌ softlocked the box (OOM livelock → auto-reboot): full 111 GB GPU copy on the 121 GiB pool |
 | CPU + mmap | `-ngl 0` | ✅ works, 7.9 t/s; ~110 GB file-backed RSS, fully reclaimable |
-| **GPU + PLE on disk** (current) | `-ngl 999 -ot "per_layer_token_embd.weight=CPU"` | ✅ **~24.7 t/s**, load in ~1.5 min, ~110 G used / 10 G avail (PLE table mmap'd from NVMe, 16 rows/token) |
+| **GPU + PLE on disk** | `-ngl 999 -ot "per_layer_token_embd.weight=CPU"` | ✅ **~24.7 t/s**, load in ~1.5 min, ~110 G used / 10 G avail (PLE table mmap'd from NVMe, 16 rows/token) |
+| **+ MTP spec decode** (current 08-29) | `spark_serve_mtp.sh`: PR #27836 build + grafted MTP head, `--spec-type draft-mtp --spec-draft-n-max 3 --spec-draft-p-min 0.75 -fa on`, 16K×1, f16 KV | ✅ **code 32.1 vs 27.4 t/s (+17%), prose neutral**; 113/121 G used, 8 G avail; first DGX Spark llama.cpp MTP run |
 
 - Cold load takes ~13 min single-threaded (~295K tensors; PR #27742 loader). `--no-warmup` used.
 - PLE tensor name in the GGUF: `per_layer_token_embd.weight` (dims 160×320,001,536; 51.2 G elements). Experts: `blk.N.ffn_{gate,up,down}_exps.weight`.
