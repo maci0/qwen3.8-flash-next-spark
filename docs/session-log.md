@@ -180,3 +180,14 @@ ssh spark2 'docker run --rm --privileged --pid=host lmsysorg/sglang:qwen38flashn
 cd ~/Qwen3.8-Flash-Next-Dual-DGX-Sparks && ./start.sh serve   # idempotent; weights already synced
 ```
 Then validate: `:8888` health, boot-log `max_total_num_tokens` ≥ 1M, throughput, NVFP4 KV pool.
+
+
+## Phase 14 — SGLang TP2 LIVE (2026-08-29/30)
+
+**Server up on 2× DGX Spark, fully Docker-contained.** MiaAI recipe, patched SM121 image (`qwen38flashnext-dspark:local`), TP2 over the CX7 rail (10.0.1.1:26400), OpenAI API on `:8888`.
+
+- Boot log proof: `max_total_num_tokens=2,056,576` (NVFP4 KV) / `1,332,352` (fp8 KV), `context_len=1048576` (**1M ✓**), `ple_offload_embedding=True`, NEXTN 3/1/4, chunked prefill 1024, radix cache on (64 cached tokens observed), CUDA graphs captured, FlashInfer autotune done.
+- Measured single-stream (timed curl, 300–600-token gens): **NVFP4 KV ~36 t/s; fp8_e4m3 KV ~38–42 t/s**. First request after boot is slower (~28 t/s, kernel warmup).
+- Blocker resolved: spark2's vLLM DeepSeek-V4 container was stopped (`docker stop vllm-ds4-0731`, reversible) to free the node; page caches dropped via privileged docker (`docker run --rm --privileged --pid=host lmsysorg/sglang:qwen38flashnext sh -c 'sync && echo 3 > /proc/sys/vm/drop_caches'`) — no sudo needed.
+- Currently running: **fp8_e4m3 KV** (best measured performance). NVFP4 KV = one `.env` flip (`NVFP4_KV_CACHE=1`) for max KV headroom (2M pool).
+- Remaining A/B candidates (docs/sglang-perf.md): `--enable-linear-replayssm-spec`, `--speculative-attention-mode decode`, `--sampling-backend pytorch`, dual-rail NCCL (10.0.2.x rail), `--enable-overlap-schedule`.

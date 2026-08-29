@@ -27,6 +27,15 @@ NCCL_CROSS_NIC=1
 EXTRA_ARGS=--disable-prefill-cuda-graph --cuda-graph-max-bs 28 --disable-cuda-graph-padding
 ```
 
+## Measured on our box (2026-08-30, TP2 @1M, patched image)
+
+| KV dtype | Pool (tokens) | Single-stream | Verdict |
+|---|---|---|---|
+| NVFP4 (`NVFP4_KV_CACHE=1`) | 2,056,576 | ~36 t/s | max KV headroom (user's original ask) |
+| **fp8_e4m3 (`NVFP4_KV_CACHE=0`)** | 1,332,352 | **~38–42 t/s** | faster decode; 1M still guaranteed |
+
+Both keep the 1M requirement (pool > 1,048,576). fp8 is ~10–17% faster on SM121; NVFP4 gives 1.5× the pool. Flip = one `.env` line + reboot.
+
 ## A/B matrix (run on our box once booted; all unmeasured on the patched Triton-fallback stack)
 
 | Knob | Default (MiaAI) | A/B | Why |
