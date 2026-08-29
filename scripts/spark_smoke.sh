@@ -2,7 +2,7 @@
 # Smoke test v2: direct (unpiped) logging so we can see what llama-cli is doing.
 # -ngl 0 + mmap = lazy paging from NVMe ("ngrams streamed from disk").
 set -e
-cd /home/maci/qwen3.8-flash-next
+cd ~/qwen3.8-flash-next
 
 GGUF=models/unsloth/Qwen3.8-Flash-Next-GGUF/UD-Q4_K_XL/Qwen3.8-Flash-Next-UD-Q4_K_XL-00001-of-00004.gguf
 BIN=llama.cpp/build/bin/llama-cli

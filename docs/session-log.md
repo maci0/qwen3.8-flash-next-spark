@@ -19,7 +19,7 @@ Serve `RadixArk/Qwen3.8-Flash-Next-NVFP4` on the DGX Spark(s); user preference: 
 
 ## Phase 2 — Access & connectivity
 
-- `192.168.0.121` (user's original) was unreachable (`No route to host`, ARP failed). User revealed the Sparks: **192.168.0.211 / .212**, reachable via the **NVIDIA Sync key** (`~/.config/NVIDIA/Sync/config/ssh_config` → aliases `spark1`/`spark2`, key `nvsync.key`).
+- The originally-given host address was unreachable (`No route to host`, ARP failed). User revealed the two Sparks (aliases `spark1`/`spark2`), reachable via the **NVIDIA Sync key**.
 - Verified both: GB10, sm_121 (compute 12.1), 20 cores aarch64, 121 GiB usable, driver 580.173.02, CUDA 13.0 toolkit, ~2.4 TB free, Docker 29.2.1.
 - User instruction: **do not use the desktop** (no GPU) — all model work on the Sparks.
 

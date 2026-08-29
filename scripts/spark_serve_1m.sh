@@ -7,7 +7,7 @@
 # Fallback: spark_serve.sh (16K ctx, 4 slots). Run detached:
 #   setsid nohup bash spark_serve_1m.sh > serve.log 2>&1 < /dev/null &
 set -e
-cd /home/maci/qwen3.8-flash-next
+cd ~/qwen3.8-flash-next
 
 GGUF=models/unsloth/Qwen3.8-Flash-Next-GGUF/UD-Q4_K_XL/Qwen3.8-Flash-Next-UD-Q4_K_XL-00001-of-00004.gguf
 

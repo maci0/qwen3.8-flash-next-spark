@@ -21,7 +21,7 @@ Every script is idempotent-ish and safe to re-run.
 ## Switching servers
 
 ```bash
-ssh spark1 'pkill -f "[l]lama-server"; sleep 3; setsid nohup bash /home/maci/qwen3.8-flash-next/spark_serve_512k.sh > /home/maci/qwen3.8-flash-next/serve.log 2>&1 < /dev/null &'
+ssh spark1 'pkill -f "[l]lama-server"; sleep 3; setsid nohup bash ~/qwen3.8-flash-next/spark_serve_512k.sh > ~/qwen3.8-flash-next/serve.log 2>&1 < /dev/null &'
 ```
 
 ## Key flags / knobs

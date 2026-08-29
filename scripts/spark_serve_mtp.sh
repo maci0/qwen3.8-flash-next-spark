@@ -2,7 +2,7 @@
 # MTP spec-decode server for Qwen3.8-Flash-Next (llama.cpp PR #27836 + grafted MTP head,
 # UD-Q4_K_XL-MTP). A/B baseline: swap "--spec-type draft-mtp ..." for "--spec-type none".
 set -e
-cd /home/maci/qwen3.8-flash-next
+cd ~/qwen3.8-flash-next
 
 GGUF=models/unsloth/Qwen3.8-Flash-Next-GGUF/UD-Q4_K_XL/Qwen3.8-Flash-Next-UD-Q4_K_XL-MTP-00001-of-00005.gguf
 

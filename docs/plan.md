@@ -81,12 +81,12 @@ Qwen3.8-27B-class NVFP4 (fits one Spark; ~38 tok/s with DFlash2/DSpark draft). O
 
 | Step | Machine | Status |
 |---|---|---|
-| SSH access via `nvsync.key` (`spark1`/`spark2` aliases) | — | ✅ |
+| SSH access (key-based, aliases `spark1`/`spark2`) | — | ✅ |
 | venv + `hf` CLI | spark1 | ✅ |
 | GGUF download (111.3 GB, UD-Q4_K_XL × 4 shards) | spark1 | ✅ (xet stalled → `HF_HUB_DISABLE_XET=1` plain-HTTP resume) |
 | llama.cpp build (PR 27742, sm_121 CUDA) | spark1 | ✅ llama.cpp 0.3.0-dev (commit `6c5afc86a`) |
 | Smoke test (`scripts/spark_smoke.sh`) | spark1 | ✅ PASSED — thinking trace + `4`, 7.9 t/s (CPU/mmap) |
-| **Serve: GPU experts + PLE on disk** (`spark_serve.sh`) | spark1 | ✅ **live at `http://192.168.0.211:8080`** — ~25 t/s, ~110 G/10 G |
+| **Serve: GPU experts + PLE on disk** (`spark_serve.sh`) | spark1 | ✅ **live at `spark1:8080`** — ~25 t/s, ~110 G/10 G |
 | 1M ctx (iq4_nl KV) / 512K (q8_0 KV) | spark1 | ✅ tested / script ready |
 | MTP (spec decode) | spark1 | ✅ **done 2026-08-29** — PR #27836 build + grafted MTP head; code 27.4 → 32.1 t/s (+17%), prose neutral |
 | Plan A: SGLang NVFP4 2×Spark TP2 | spark2+both | ⏳ decision point |

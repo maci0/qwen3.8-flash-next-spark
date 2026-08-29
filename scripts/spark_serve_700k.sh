@@ -3,7 +3,7 @@
 # q8_0 (FP8) KV is borderline (~119 G, ~1-2 G headroom); the iq4_nl variant is comfortable (~115 G).
 # Run detached: setsid nohup bash spark_serve_700k.sh > serve_700k.log 2>&1 < /dev/null &
 set -e
-cd /home/maci/qwen3.8-flash-next
+cd ~/qwen3.8-flash-next
 
 GGUF=models/unsloth/Qwen3.8-Flash-Next-GGUF/UD-Q4_K_XL/Qwen3.8-Flash-Next-UD-Q4_K_XL-00001-of-00004.gguf
 

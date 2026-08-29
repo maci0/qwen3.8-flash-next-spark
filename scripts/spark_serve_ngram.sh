@@ -4,7 +4,7 @@
 # ngram-mod drafts tokens from context statistics; expect a modest decode speedup.
 # Run detached: setsid nohup bash spark_serve_ngram.sh > serve.log 2>&1 < /dev/null &
 set -e
-cd /home/maci/qwen3.8-flash-next
+cd ~/qwen3.8-flash-next
 
 GGUF=models/unsloth/Qwen3.8-Flash-Next-GGUF/UD-Q4_K_XL/Qwen3.8-Flash-Next-UD-Q4_K_XL-00001-of-00004.gguf
 
