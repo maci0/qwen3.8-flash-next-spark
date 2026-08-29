@@ -157,3 +157,5 @@ After the Phase 11 correction, actually ran it:
 | **draft-mtp** | **32.1 t/s (+17%)** | 27.1 t/s (neutral) |
 
 MTP helps code/structured, ~neutral on prose — matches the community pattern (they saw +30–90% code on Metal/ROCm with q8_0 KV/mlock). First published DGX Spark + llama.cpp + MTP run. Scripts: `spark_serve_mtp.sh` (MTP), `spark_serve_mtp_plain.sh` (baseline; one-flag swap).
+
+**Tuning sweep** (q8_0 KV / n-max 2 vs 3): q8_0 KV consistently lowered code speed (32.1 → ~29.3 t/s), prose within noise (±10%); n-max 2 ≈ n-max 3. **Best config stays f16 KV + n-max 3** (code +17%).
