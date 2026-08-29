@@ -34,17 +34,32 @@ build/bin/llama-server -m <...-MTP-00001-of-00005.gguf> \
 
 The exact steps used here are captured as re-runnable scripts in [`scripts/`](scripts/README.md) (`spark_download.sh`, `spark_build.sh`, `spark_smoke.sh`, `spark_serve*.sh`).
 
-## Measured results (single DGX Spark, 2026-08-29)
+## Results (single DGX Spark, measured 2026-08-29)
+
+### Throughput — with and without MTP
 
 | Config | Code | Prose |
 |---|---|---|
 | plain (f16 KV, `-ngl 999`, PLE on disk) | 27.4 t/s | 27.3 t/s |
 | **+ MTP** (`draft-mtp`, n-max 3, f16 KV) | **32.1 t/s (+17%)** | 27.1 t/s |
-| MTP, q8_0 KV | ~29.3 t/s | ~31.3 t/s |
+| MTP, q8_0 KV, n-max 3 | ~29.3 t/s | ~31.3 t/s |
+| MTP, q8_0 KV, n-max 2 | 28.8 t/s | 29.9 t/s |
 
-Tuning sweep: f16 KV beats q8_0 KV for code; n-max 2 ≈ 3. Prompt eval ~77–86 t/s.
+![Throughput by config](assets/throughput.png)
 
-Context × KV fits (1 slot): 512K `q8_0` ✅ (~7 G headroom) · 700K `iq4_nl` ✅ (~4–5 G) · 800K/1M `iq4_nl` ✅ (~1 G) · FP8 above ~512–640K swaps.
+Tuning sweep: f16 KV beats q8_0 KV for code; n-max 2 ≈ 3. Prompt eval ~77–86 t/s. (256-token generations, single stream, PR #27836 build.)
+
+### KV cache vs context length
+
+KV is ~24 KiB/token f16 across the 12 QSA layers (+ ~3 KiB/token indexer, stays f16). Measured fits (1 slot): 512K `q8_0` ✅ (~7 G headroom) · 700K `iq4_nl` ✅ (~4–5 G) · 800K/1M `iq4_nl` ✅ (~1 G) · FP8 above ~512–640K swaps.
+
+![KV cache vs context](assets/kv_vs_ctx.png)
+
+### GGUF composition (UD-Q4_K_XL, 104.9 GB)
+
+![Quant mix](assets/quant_mix.png)
+
+The PLE n-gram table is 4-bit (`IQ4_NL`) — the floor Unsloth recommends for it; the bulk of the experts sit at Q4_K/Q5_1, attention at Q8_0.
 
 ## Repo structure
 
@@ -53,6 +68,7 @@ Context × KV fits (1 slot): 512K `q8_0` ✅ (~7 G headroom) · 700K `iq4_nl` �
 | `docs/research.md` | Model/hardware facts, runtime verdicts (SGLang / vLLM / llama.cpp), memory math, sources |
 | `docs/plan.md` | Plan A (SGLang NVFP4 2×Spark), Plan B (GGUF, done), serving modes, MTP status, ops notes |
 | `docs/session-log.md` | Chronological build log: what was tried, measured, and learned |
+| `assets/` | README charts (regenerate: `python scripts/gen_charts.py`) |
 | `scripts/` | Re-runnable setup + serving scripts (see `scripts/README.md`) |
 
 GLM-5.3-Flash feasibility is tracked in a separate project.
