@@ -242,3 +242,14 @@ Tested all remaining perf levers (each = base config + one lever, 24 concurrent,
 - **Recovery boots failed twice with NCCL errors** ("remote process exited" / "unhandled system error"). Root cause: **GID-table drift after the reboot** — the recipe hardcodes `NCCL_IB_GID_INDEX=3`; post-reboot, spark1's GID 3 was a valid link-local address but **spark2's GID 3 was empty** (asymmetric tables; the IPv4 GIDs also sat at different indices: 4 vs 5).
 - **Fix**: removed `NCCL_IB_GID_INDEX` from the recipe's NCCL env entirely (`sed -i '/NCCL_IB_GID_INDEX=/d' start.sh`) — **NCCL auto-selects a usable RoCEv2 GID**. Verified: clean boot (~600 s), pool 1,264,128 (>1M), completion OK.
 - **Ops rule going forward**: never pin `NCCL_IB_GID_INDEX` on this setup; the tables drift across reboots. Also: expect a ~10-min boot + possible NCCL hiccup after any host reboot (drop caches first; the GID auto-fix makes reboots safe).
+
+
+## Phase 19 — Post-recovery verification (2026-08-30)
+
+Server recovered and re-verified after the softlock + GID fix:
+
+- **API**: `spark1:8888` up, model `Qwen3.8-Flash-Next-NVFP4`, `max_model_len=1,048,576`.
+- **KV pool**: 1,264,128 tokens (>1M ✓) with the final config (fp8 KV + spec-attn-decode + replayssm-spec + NCCL8, GID pin removed).
+- **Completion**: works (thinking trace + answer).
+- **Memory steady-state**: spark1 105/121 GB used, spark2 104/121 used, **~16 GB available per node** (~32 GB cluster-wide), ~47 GB reclaimable buff/cache.
+- Cluster stable; the NCCL auto-GID fix makes future reboots safe (drop caches first, ~10-min boot).
