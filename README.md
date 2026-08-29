@@ -20,7 +20,7 @@ Goal: run **Qwen3.8-Flash-Next** (~180B-param multimodal MoE, `qwen4_exp` archit
 | 3 | **GGUF 4-bit via llama.cpp — serving on spark1** | ⏸ **stopped 2026-08-27 (user requested)** — server shut down, port 8080 closed, memory freed; model/build/scripts remain on `spark1` for restart |
 | 4 | GPU experts + PLE n-gram table streamed from disk | ✅ **the active config** — ~25 t/s, ~110 G used / 10 G available |
 | 5 | 1M context (YaRN) + quantized KV | ✅ tested: 1M with `iq4_nl` KV (knife-edge ~1 G headroom); **512K with FP8 KV recommended for daily use** |
-| 6 | MTP spec decode | ✅ **possible on the GGUF stack since 08-27/28** — llama.cpp PR [#27836](https://github.com/ggml-org/llama.cpp/pull/27836) + community MTP-head GGUFs (jlkivey / dzannotti / quimmedes); community-verified **+30–90% on code/structured**; needs patched build + matching head. SGLang+NVFP4 TP2 remains the higher-throughput path (47–70 t/s) |
+| 6 | MTP spec decode | ✅ **working on spark1** — PR [#27836](https://github.com/ggml-org/llama.cpp/pull/27836) build + jlkivey MTP-head GGUF grafted onto UD-Q4_K_XL; **code 32.1 vs 27.4 t/s (+17%), prose neutral** (first DGX Spark llama.cpp MTP run) |
 | 7 | SGLang NVFP4 (Plan A) | ⏸ not started — the decision point |
 
 ### Live state (checked 2026-08-27 late)

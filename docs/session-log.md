@@ -140,3 +140,20 @@ My 08-27 conclusion ("MTP impossible on the GGUF stack; head exists only in NVFP
 - Community-verified: **+30–90% t/s on code/structured**, ~neutral on prose; `--spec-draft-n-max 3 --spec-draft-p-min 0.75`; head ≈ +2.5 GB (Q4_K_M).
 - **No published DGX Spark + llama.cpp + MTP run yet** — open opportunity.
 - Lesson: the llama.cpp qwen4exp ecosystem moved in days; conclusions about unmerged-PR-era capability go stale fast. Also: I under-researched the MTP *head* existence — it's in the BF16 source and NVFP4 alike; "absent from the Unsloth GGUF" ≠ "doesn't exist".
+
+
+## Phase 12 — MTP implemented & benchmarked on spark1 (2026-08-29)
+
+After the Phase 11 correction, actually ran it:
+
+1. Rebuilt llama.cpp on spark1 from **PR #27836** (`git fetch origin pull/27836/head:pr27836` → `1d8de7c1b`, build 10667, sm_121 CUDA).
+2. Downloaded jlkivey's MTP head (`mtp-Qwen3.8-Flash-Next-Q8_0.gguf`, 4.1 GB, 34 tensors) + `graft-mtp-shard.py`; grafted onto our UD-Q4_K_XL split → `...-MTP-0000{1..5}-of-00005.gguf` (head as trailing shard, `block_count 48→49`, `nextn_predict_layers=1`); `--verify` PASSED (1256 tensors).
+3. Served with `--spec-type draft-mtp --spec-draft-n-max 3 --spec-draft-p-min 0.75 -fa on` + our PLE-on-disk config; log confirmed "creating MTP draft context against the target model". Memory ~107/121 G.
+4. **A/B on identical build/model (parallel 1, 256-token gens)**:
+
+| | code | prose |
+|---|---|---|
+| plain (`--spec-type none`) | 27.4 t/s | 27.3 t/s |
+| **draft-mtp** | **32.1 t/s (+17%)** | 27.1 t/s (neutral) |
+
+MTP helps code/structured, ~neutral on prose — matches the community pattern (they saw +30–90% code on Metal/ROCm with q8_0 KV/mlock). First published DGX Spark + llama.cpp + MTP run. Scripts: `spark_serve_mtp.sh` (MTP), `spark_serve_mtp_plain.sh` (baseline; one-flag swap).

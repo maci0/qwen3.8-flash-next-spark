@@ -15,6 +15,7 @@ Every script is idempotent-ish and safe to re-run.
 | `spark_serve_800k.sh` | 800K ctx, 1 slot, YaRN factor 3.1. **q8_0 (FP8) KV does NOT fit** (swap-thrash, verified); the `_iq4nl` variant fits (~1 G headroom, verified serving). |
 | `spark_serve_700k.sh` | 700K ctx, 1 slot, YaRN factor 2.7. **q8_0 (FP8) does NOT fit** (swap); **`_iq4nl` variant fits comfortably** (~4–5 G headroom, verified serving) — best big-ctx config. |
 | `spark_serve_ngram.sh` | 16K×4 + `--spec-type ngram-mod` — measured **no speedup** (not engaged); kept for reference. |
+| `spark_serve_mtp.sh` | **MTP server** (PR #27836 build + grafted `...-MTP-00001-of-00005.gguf`): `--spec-type draft-mtp --spec-draft-n-max 3 --spec-draft-p-min 0.75 -fa on`, 16K×1 slot. Measured: code 32.1 vs 27.4 plain (+17%); prose neutral. Baseline: swap the spec-type line to `--spec-type none` (`spark_serve_mtp_plain.sh` on spark1). |
 
 ## Switching servers
 

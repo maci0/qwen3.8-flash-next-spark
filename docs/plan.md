@@ -73,6 +73,7 @@ Qwen3.8-27B-class NVFP4 (fits one Spark; ~38 tok/s with DFlash2/DSpark draft). O
   ```
   Memory: head adds ~2.5 GB (Q4_K_M) → fits the 16K config (~113 G/121 G); too tight for 700K+ ctx configs.
 - **No published DGX Spark + llama.cpp + MTP run yet** (as of 08-29) — we'd be first.
+- **Our DGX Spark measurement (2026-08-29, UD-Q4_K_XL + jlkivey graft, PR #27836 build `1d8de7c1b`, parallel 1, f16 KV, `-fa on`)**: code 27.4 → **32.1 t/s (+17%)**; prose 27.3 → 27.1 t/s (neutral). **First published DGX Spark + llama.cpp + MTP run.** Community (Metal/ROCm) saw larger code gains (+30–90%) with q8_0 KV / mlock / their tuning. Graft verify passed (1256 tensors, 5 shards).
 - SGLang NVFP4 on 2×Spark TP2 remains the higher-throughput path (47–70 t/s with MTP4).
 
 ## Live runbook — Plan B attempt
