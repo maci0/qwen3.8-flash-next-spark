@@ -5,7 +5,6 @@ Goal: run **Qwen3.8-Flash-Next** (~180B-param multimodal MoE, `qwen4_exp` archit
 | Doc | Contents |
 |---|---|
 | [`docs/research.md`](docs/research.md) | Full research: model facts, hardware facts, runtime verdicts, memory math, sources |
-| [`glm/glm-5.3-flash.md`](glm/glm-5.3-flash.md) | GLM-5.3-Flash feasibility on 2× Spark: specs, precision sizes, memory math, runtimes, precedents |
 | [`docs/plan.md`](docs/plan.md) | Plans A/B/C, serving modes, KV/quant measurements, MTP status, ops notes |
 | [`docs/session-log.md`](docs/session-log.md) | Chronological log of everything done on 2026-08-27, with measured results & lessons |
 | [`scripts/README.md`](scripts/README.md) | Script inventory (what each does, how to run) |
