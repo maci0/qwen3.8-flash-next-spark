@@ -73,7 +73,8 @@ More in [`docs/sglang-perf.md`](sglang-perf.md).
 
 ## Gotchas / notes
 
-- **UMA softlocks**: booting under a full page cache wedges the box (kernel pings, sshd starved, ~10 min auto-reboot or manual power cycle). Always drop caches before boot. Two incidents logged.
+- **UMA softlocks**: booting under a full page cache wedges the box (kernel pings, sshd starved, ~10 min auto-reboot or manual power cycle). Always drop caches before boot. Four incidents logged.
+- **Do NOT set `NCCL_IB_GID_INDEX`** — the recipe originally hardcoded `=3`; GID tables drift across host reboots (spark2's GID 3 went empty after one reboot, breaking NCCL with "unhandled system error"). We removed the pin; NCCL auto-selects a valid RoCEv2 GID. Expect a clean ~10-min boot after any reboot.
 - **mem-fraction 0.85+** risks the DGX OS earlyoom SIGTERM — 0.82 is the validated 1M point.
 - **Dual-rail NCCL**: the recipe's preflight accepts a single RoCE device; dual-rail was tried and reverted (not worth patching for unverified ~2%).
 - **`--enable-torch-compile`**: breaks CUDA-graph capture on SM121 — keep off.

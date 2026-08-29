@@ -234,3 +234,11 @@ Tested all remaining perf levers (each = base config + one lever, 24 concurrent,
 | `--enable-overlap-schedule` | fails to boot | ❌ PLE constraint confirmed |
 
 **Final running config**: fp8 KV + `--speculative-attention-mode decode --enable-linear-replayssm-spec` + NCCL8. Pool 1,232,832 (1M ✓). Single-stream up to ~81–103 t/s; aggregate band 183–234 (run-to-run variance ±25%). Scripts `scripts/sglang_ab.sh` / `scripts/sglang_ab_all.sh` reproduce the A/B harness. Full table in `docs/sglang-perf.md`.
+
+
+## Phase 18 — Softlock #4 + NCCL GID drift (2026-08-30)
+
+- **Incident**: after the A/B benchmark marathon, `spark1` softlocked (4th UMA softlock of the session — kernel pings, sshd starved). User power-cycled it.
+- **Recovery boots failed twice with NCCL errors** ("remote process exited" / "unhandled system error"). Root cause: **GID-table drift after the reboot** — the recipe hardcodes `NCCL_IB_GID_INDEX=3`; post-reboot, spark1's GID 3 was a valid link-local address but **spark2's GID 3 was empty** (asymmetric tables; the IPv4 GIDs also sat at different indices: 4 vs 5).
+- **Fix**: removed `NCCL_IB_GID_INDEX` from the recipe's NCCL env entirely (`sed -i '/NCCL_IB_GID_INDEX=/d' start.sh`) — **NCCL auto-selects a usable RoCEv2 GID**. Verified: clean boot (~600 s), pool 1,264,128 (>1M), completion OK.
+- **Ops rule going forward**: never pin `NCCL_IB_GID_INDEX` on this setup; the tables drift across reboots. Also: expect a ~10-min boot + possible NCCL hiccup after any host reboot (drop caches first; the GID auto-fix makes reboots safe).
