@@ -68,6 +68,7 @@ The PLE n-gram table is 4-bit (`IQ4_NL`) — the floor Unsloth recommends for it
 | `docs/research.md` | Model/hardware facts, runtime verdicts (SGLang / vLLM / llama.cpp), memory math, sources |
 | `docs/plan.md` | Plan A (SGLang NVFP4 2×Spark), Plan B (GGUF, done), serving modes, MTP status, ops notes |
 | `docs/session-log.md` | Chronological build log: what was tried, measured, and learned |
+| `docs/sglang-perf.md` | SGLang TP2 performance tuning: NCCL/graph wins, A/B matrix, throughput ceiling |
 | `assets/` | README charts (regenerate: `python scripts/gen_charts.py`) |
 | `scripts/` | Re-runnable setup + serving scripts (see `scripts/README.md`) |
 
