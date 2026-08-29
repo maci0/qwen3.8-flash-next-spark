@@ -159,3 +159,8 @@ After the Phase 11 correction, actually ran it:
 MTP helps code/structured, ~neutral on prose — matches the community pattern (they saw +30–90% code on Metal/ROCm with q8_0 KV/mlock). First published DGX Spark + llama.cpp + MTP run. Scripts: `spark_serve_mtp.sh` (MTP), `spark_serve_mtp_plain.sh` (baseline; one-flag swap).
 
 **Tuning sweep** (q8_0 KV / n-max 2 vs 3): q8_0 KV consistently lowered code speed (32.1 → ~29.3 t/s), prose within noise (±10%); n-max 2 ≈ n-max 3. **Best config stays f16 KV + n-max 3** (code +17%).
+
+
+## Phase 12b — second UMA softlock & auto-reboot (2026-08-29)
+
+After the tuning sweep, restarting the MTP server wedged the box again: ICMP responded (0.1 ms), sshd couldn't send its banner, `spark2` unaffected. Auto-rebooted after ~10 min (`up 1 min`). Trigger pattern: server restart while the page cache is full of the model + a fresh ~100 GB CUDA allocation on the 121 GiB pool. Everything survived (NVMe); MTP server relaunched cleanly (113/121 G used, 8 G avail, health OK). Recurring failure mode on UMA — keep ≥8 GB headroom and expect occasional reboot-on-restart; `drop_caches` before load would help but needs root (no sudo on maci).
