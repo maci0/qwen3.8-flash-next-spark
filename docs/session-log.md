@@ -253,3 +253,11 @@ Server recovered and re-verified after the softlock + GID fix:
 - **Completion**: works (thinking trace + answer).
 - **Memory steady-state**: spark1 105/121 GB used, spark2 104/121 used, **~16 GB available per node** (~32 GB cluster-wide), ~47 GB reclaimable buff/cache.
 - Cluster stable; the NCCL auto-GID fix makes future reboots safe (drop caches first, ~10-min boot).
+
+
+## Phase 20 — "Seems stuck" diagnosis: it's the thinking mode (2026-08-30)
+
+- User reported requests "stuck". Server was healthy (my own request returned in 8 s); the log showed `Received output ... state was deleted in TokenizerManager` = **client-side timeouts aborting requests**, not a server hang.
+- Root cause: the model **thinks by default** (xhigh effort) — tiny prompts like "hi" spend the whole budget on a reasoning trace with empty `content`, and pay ~8 s of TTFT+thinking overhead.
+- Fix (client-side, instant): `"chat_template_kwargs": {"enable_thinking": false}` → **0.39 s** with a direct answer; `"reasoning_effort": "low"` → 1.2 s with a short trace. Longer generations still run at ~80–100 t/s after first tokens.
+- Optional server default (10-min reboot): `--default-chat-template-kwargs '{"enable_thinking": false}'` (tonyd2wild's launcher does this) — not applied; thinking stays opt-in via the same kwargs.
