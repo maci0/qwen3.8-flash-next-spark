@@ -128,3 +128,15 @@ Serve `RadixArk/Qwen3.8-Flash-Next-NVFP4` on the DGX Spark(s); user preference: 
 - **700K + q8_0 (FP8) KV: does NOT fit** — 121/121 used, 0 available, swap climbing (2 GB). FP8 ceiling on this box is ~512–640K.
 - **700K + iq4_nl KV: fits comfortably** — 116/121 used, ~4–5 G headroom, 0 swap, verified serving (`700k works`). The best big-context config (more headroom than 800K/1M).
 - Configs: `scripts/spark_serve_700k.sh` (q8_0, reference) + `_iq4nl` variant (recommended).
+
+
+## Phase 11 — MTP correction (2026-08-29)
+
+My 08-27 conclusion ("MTP impossible on the GGUF stack; head exists only in NVFP4") was **wrong / outdated within 48h**, corrected via online research:
+
+- llama.cpp PR **#27742 (qwen4exp base) merged into master** (08-26/28). Master still has no qwen4exp MTP.
+- llama.cpp PR **#27836** (open) adds qwen4exp MTP draft (`--spec-type draft-mtp`): loads the 1-layer 4B MTP block (31 `mtp.*` tensors, ~7.7 GB BF16) from a grafted main GGUF or a sidecar `-md` file.
+- **4 community MTP-head GGUFs published** (jlkivey, dzannotti, quimmedes, ashbash/MLX). Patch and head must be paired (incompatible layouts).
+- Community-verified: **+30–90% t/s on code/structured**, ~neutral on prose; `--spec-draft-n-max 3 --spec-draft-p-min 0.75`; head ≈ +2.5 GB (Q4_K_M).
+- **No published DGX Spark + llama.cpp + MTP run yet** — open opportunity.
+- Lesson: the llama.cpp qwen4exp ecosystem moved in days; conclusions about unmerged-PR-era capability go stale fast. Also: I under-researched the MTP *head* existence — it's in the BF16 source and NVFP4 alike; "absent from the Unsloth GGUF" ≠ "doesn't exist".

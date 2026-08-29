@@ -55,11 +55,25 @@ Chosen because: single-Spark viable, real n-gram disk streaming via mmap, quick 
 
 Qwen3.8-27B-class NVFP4 (fits one Spark; ~38 tok/s with DFlash2/DSpark draft). Only if a single Spark is a hard constraint and GGUF quality is insufficient.
 
-### MTP (multi-token prediction) — status 2026-08-27
+### MTP (multi-token prediction) — status 2026-08-29 (CORRECTED)
 
-- **Not available on the GGUF stack.** Unsloth's `UD-Q4_K_XL` contains **no MTP head**: tensor blocks only span `blk.0–47`, and there is no `mtp`/`nextn` metadata. Moreover, the PR's converter **deliberately drops it** — `conversion/qwen4exp.py`: *"the MTP block is a separate draft head; vLLM drops it too; `supports_mtp_export = False`"*. So no GGUF for this model can carry MTP today.
-- `--spec-type draft-mtp` exists in the build but has nothing to use (verified: `n_layer_nextn` metadata absent). n-gram spec decode (`--spec-type ngram-mod`) was tried — not engaged (0 spec log lines), no speedup (24.4 vs 25.7 t/s).
-- **The MTP head (31 BF16 tensors) exists only in the NVFP4 checkpoint** (`RadixArk/Qwen3.8-Flash-Next-NVFP4`) → the only real MTP path is **SGLang `qwen4_exp` on 2×Spark TP2** (Plan A): proven 47–70 t/s with MTP4, accept ≈2.3–3.3.
+**MTP IS possible on the llama.cpp/GGUF stack** — my 08-27 conclusion ("not possible, only via SGLang") was outdated within ~48h. Corrected state:
+
+- The Unsloth GGUF still ships **without** the MTP head (converter `no_mtp = True`; verified) — that part stands.
+- **llama.cpp PR #27742 (qwen4exp base) merged into master** (between 08-26 and 08-28). Master still has `supports_mtp_export = False` for qwen4exp — no MTP on stock master yet.
+- **llama.cpp PR [#27836](https://github.com/ggml-org/llama.cpp/pull/27836)** ("qwen4exp: add NextN/MTP draft head `--spec-type draft-mtp`") — open, working, community-used. It loads the 1-layer 4B MTP block (31 `mtp.*` tensors, exists in the BF16 source — **not** only in NVFP4 as I wrongly claimed) and routes MTP contexts to a plain KV cache.
+- **MTP-head GGUFs published** (2026-08-27/28): [jlkivey (PR#27836 graft route)](https://huggingface.co/jlkivey/Qwen3.8-Flash-Next-MTP-PR27836-GGUF), [dzannotti (`-md` sidecar)](https://huggingface.co/dzannotti/Qwen3.8-Flash-Next-MTP-GGUF), [quimmedes (`-md`)](https://huggingface.co/quimmedes/Qwen3.8-Flash-Next-MTP-GGUF), [ashbash (MLX only)](https://huggingface.co/ashbash/Qwen3.8-Flash-Next-MTP-Drafter-GGUF). **Patch and head must be paired** — the routes use incompatible tensor layouts.
+- **Community-verified speedups** (llama.cpp + qwen4exp + draft-mtp, n-max 2–3): +30–90% on code/structured, ~neutral on prose. E.g. Strix Halo UD-Q4_K_XL: 20.3 → 35.8 t/s code; M5 Max UD-IQ4_XS: 38.5 → 50.4 t/s code (acceptance 0.57–0.90). Tuning: `--spec-draft-n-max 3 --spec-draft-p-min 0.75` ("stop drafting when the head is unsure").
+- **Recipe sketch** (dzannotti sidecar route):
+  ```bash
+  LLAMA_ATTN_ROT_DISABLE=1 llama-server \
+    -m <main UD-Q4_K_XL shard1> -md <MTP-Q4_K_M.gguf> -ngld 999 \
+    --spec-type draft-mtp --spec-draft-n-max 3 --spec-draft-p-min 0.75 \
+    -ngl 999 -fa on -ctk q8_0 -ctv q8_0
+  ```
+  Memory: head adds ~2.5 GB (Q4_K_M) → fits the 16K config (~113 G/121 G); too tight for 700K+ ctx configs.
+- **No published DGX Spark + llama.cpp + MTP run yet** (as of 08-29) — we'd be first.
+- SGLang NVFP4 on 2×Spark TP2 remains the higher-throughput path (47–70 t/s with MTP4).
 
 ## Live runbook — Plan B attempt
 

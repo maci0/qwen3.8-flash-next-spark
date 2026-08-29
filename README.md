@@ -20,7 +20,7 @@ Goal: run **Qwen3.8-Flash-Next** (~180B-param multimodal MoE, `qwen4_exp` archit
 | 3 | **GGUF 4-bit via llama.cpp — serving on spark1** | ⏸ **stopped 2026-08-27 (user requested)** — server shut down, port 8080 closed, memory freed; model/build/scripts remain on `spark1` for restart |
 | 4 | GPU experts + PLE n-gram table streamed from disk | ✅ **the active config** — ~25 t/s, ~110 G used / 10 G available |
 | 5 | 1M context (YaRN) + quantized KV | ✅ tested: 1M with `iq4_nl` KV (knife-edge ~1 G headroom); **512K with FP8 KV recommended for daily use** |
-| 6 | MTP spec decode | ❌ **not possible on the GGUF stack** (head absent from GGUF + converter drops it) — only via **SGLang + NVFP4 on 2×Spark TP2** (Plan A) |
+| 6 | MTP spec decode | ✅ **possible on the GGUF stack since 08-27/28** — llama.cpp PR [#27836](https://github.com/ggml-org/llama.cpp/pull/27836) + community MTP-head GGUFs (jlkivey / dzannotti / quimmedes); community-verified **+30–90% on code/structured**; needs patched build + matching head. SGLang+NVFP4 TP2 remains the higher-throughput path (47–70 t/s) |
 | 7 | SGLang NVFP4 (Plan A) | ⏸ not started — the decision point |
 
 ### Live state (checked 2026-08-27 late)
@@ -44,5 +44,5 @@ SSH: `~/.config/NVIDIA/Sync/config/ssh_config` defines `spark1`/`spark2` with `n
 
 1. **"llamacpp or vllm?"** → Neither for the NVFP4 checkpoint: only **SGLang** serves `qwen4_exp` + NVFP4, and it needs **2× Spark TP2** (135 GB > 121 GiB single Spark). vLLM can't load the RadixArk FP8-PLE tensors; llama.cpp can't load NVFP4 safetensors.
 2. **"ngrams streamed from disk"** → PLE n-gram tables (51B params) are a sparse lookup (16 rows/token). Achieved via **llama.cpp `-ngl 999` + `-ot "per_layer_token_embd.weight=CPU"`**: experts on GPU, PLE mmap'd from the NVMe.
-3. **Single-Spark route = GGUF 4-bit** (Plan B): works at ~25 t/s. **MTP is unreachable on this stack** (head not in GGUF; converter drops it) → full quality + MTP requires **Plan A: SGLang NVFP4 on 2×Spark** (proven 47–70 t/s with MTP4).
+3. **Single-Spark route = GGUF 4-bit** (Plan B): works at ~25 t/s. **MTP is reachable on the GGUF stack** (llama.cpp PR #27836 + community MTP-head GGUFs, +30–90% on code/structured) — but the higher-throughput path remains **Plan A: SGLang NVFP4 on 2×Spark** (proven 47–70 t/s with MTP4).
 4. **1M context**: feasible with YaRN (factor 4) + quantized KV; `iq4_nl` KV fits 1M at ~1 G headroom; `q8_0` (FP8) KV fits 512K comfortably.
