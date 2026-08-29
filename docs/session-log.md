@@ -205,3 +205,16 @@ A/B results on the patched SM121 image, TP2 @1M:
 | dual-rail NCCL (both CX7 rails) | — | — | — | ❌ reverted (recipe preflight is single-device) |
 
 **Final running config**: fp8_e4m3 KV + spec-attn-mode decode + NEXTN 3/1/4 + NCCL channel tuning, single CX7 rail, `qwen38flashnext-dspark:local` image on both nodes, API `http://spark1:8888`, `max_model_len=1,048,576`, pool 1,254,528 tokens. NVFP4 KV (2,056,576 pool) is one `.env` flip away (`NVFP4_KV_CACHE=1`).
+
+
+## Phase 16 — Documentation pass (2026-08-30)
+
+Full doc set for the SGLang deployment published:
+
+- **`docs/sglang-deployment.md`** (new) — reproducible runbook: SM121 patched-image rationale, `.env` (all values), the two local fixes (rsync trees-exclude via `scripts/patch_miaai_rsync.py`, privileged-Docker page-cache drop without sudo), boot/resume, validation checklist, measured results, gotchas.
+- **`scripts/sglang/.env.example`** (new) — the exact working `.env` (no secrets).
+- **`README.md`** — restructured as a two-stack project (SGLang NVFP4 TP2 flagship + llama.cpp GGUF fallback) with the measured tables.
+- **`docs/plan.md`** — Plan A marked DONE with outcomes.
+- **`docs/sglang-perf.md`** — final A/B numbers (fp8 + spec-attn-mode decode = 147.6–155.2 agg / ~40–44 t/s single; NVFP4-KV 2.06M pool option).
+
+Live state at close: SGLang TP2 up on both Sparks (`spark1:8888`, `max_model_len=1,048,576`, pool 1,254,528 fp8), 105/121 GB used per node, 16 GB available each.

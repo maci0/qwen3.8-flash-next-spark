@@ -9,9 +9,9 @@ One Spark + GGUF 4-bit   → works, mmap + PLE on SSD    ← current attempt (Pl
 One Spark + smaller model→ Qwen3.8-27B-class NVFP4     ← fallback (Plan C)
 ```
 
-## Plan A — SGLang, 2× Spark TP2, NVFP4 (full quality)
+## Plan A — SGLang, 2× Spark TP2, NVFP4 (full quality) — ✅ DONE 2026-08-30
 
-Proven by two independent community runs of this exact checkpoint. Both Sparks confirmed available (`.211`/`.212`).
+Proven by two independent community runs of this exact checkpoint, then deployed here. See **[`docs/sglang-deployment.md`](sglang-deployment.md)** (runbook) + **[`docs/sglang-perf.md`](sglang-perf.md)** (tuning). Live at `spark1:8888`: **1M ctx, ~40–44 t/s single-stream, ~148–155 tok/s aggregate, NVFP4/fp8 KV, PLE offload, Docker-contained**.
 
 1. **Build SGLang with qwen4_exp support** (both units): PR [sgl-project/sglang#36497](https://github.com/sgl-project/sglang/pull/36497) (branch `qwen4-main-squashed@73a2552`) — not in any release — plus:
    - one-line sm_121 QSA gate patch ([#36531](https://github.com/sgl-project/sglang/issues/36531));
