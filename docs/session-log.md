@@ -327,3 +327,35 @@ Final state of everything:
 2. SGLang TP1 NVMe-PLE (1 Spark, 1M ctx, ~50 agg) — the single-Spark NVFP4 path, **live**.
 3. llama.cpp GGUF MTP (1 Spark, 4-bit, ~32 t/s) — the light fallback.
 4. GLM-5.3-Flash feasibility — separate project.
+
+
+## Phase 24 — vLLM TP2 across 2× Spark: the Ray/NCCL/CUDA-graph gauntlet (2026-08-30)
+
+Goal (user): serve Qwen3.8-Flash-Next with **vLLM tensor-parallel-2 across both DGX Sparks**, NVFP4, PLE from NVMe, 1M ctx; compare vs SGLang TP2 (183–234 agg).
+
+**Stack chosen**: `blazux/qwen3.8-Flash-DGX` patched image (the only vLLM build that runs qwen4_exp on GB10 — stock `vllm/vllm-openai:qwen38-flash-next-arm64-cu130` does NOT work; qwen4_exp support exists only as open PR vllm#53896, not in any release). KV in this vLLM is **bf16-only** for qwen4_exp (QSA refuses fp8/nvfp4) → ~30 GiB per 1M ctx → concurrency memory-bound (~7.7× at 512K per the run). **Launch script: `scripts/vllm_tp2.sh`** (run `RANK=0` on spark1, `RANK=1` on spark2; API on spark1:8000).
+
+### The five failures and their fixes (all real, all reproduced)
+
+1. **`Failed to import Ray`** — the blazux image ships no Ray. Fix: `pip install --no-deps ray` (2.58.0) into the image, `docker commit` → `qwen38-flash-dgx-ray`, streamed to spark2 via `docker save | gzip | ssh spark2 'gunzip | docker load'`. Gotcha: the commit inherited the builder container's overridden entrypoint (`bash`), silently breaking the image's `ENTRYPOINT ["vllm","serve"]` → relaunch needed `--entrypoint vllm ... serve <snapshot> ...`.
+2. **`No node info found matching attributes: ''`** — ray 2.58 resolves the *driver's* node by scanning **local raylet sockets** (`find_node_ids()` reads `/tmp/ray` in the driver's own container). A driver with no local `ray start` finds zero sockets → polls forever → raises. Fix: run `ray start` in the same container as the driver. Related: `RAY_ADDRESS=10.0.1.1:6379` is mandatory (`address="auto"` probes 127.0.0.1:6379, which the head doesn't bind → silently starts a bogus single-node local cluster).
+3. **Cluster-ID churn** — Ray head inside the vLLM container: every engine-core failure exits the container, Docker restarts it, ray generates a **new cluster ID**, spark2's raylet dies with `GCS returned an authentication error`, and the next engine retry hits `ActorHandleNotFoundError` (job 34→35). Fix: **stable-cluster topology** — dedicated `qwen38-rayhead` container (`--num-gpus=0`, control plane only, never exits), vLLM container joins as a ray worker node owning spark1's GPU, spark2 joins as before. Engine failures now only restart the vLLM container; the cluster survives. The script reuses an existing rayhead (recreating it would regenerate the cluster ID again).
+4. **`Failed to initialize any NET plugin`** → `ibv_create_cq ... Cannot allocate memory` — two docker facts: `--gpus all` does **not** inject `/dev/infiniband`, and the default memlock ulimit is **8 MB** (RDMA CQ allocation fails with ENOMEM). Fix: `--device /dev/infiniband/rdma_cm --device /dev/infiniband/uverbs0..2` + `--ulimit memlock=-1 --ulimit stack=67108864`. Verified end-to-end with a standalone 2-node torch `all_reduce` over the CX rail: `NCCL INFO Init timings - ncclCommInitRank: rank 0/1 nranks 2 total 1.72s (connections 1.50s)`.
+5. **`Cannot copy between CPU and CUDA tensors during CUDA graph capture unless the CPU tensor is pinned`** — the PLE gather is a CPU op + a pageable host→device copy and MUST run outside the CUDA graph. The blazux recipe declares it (and the attention/mamba family) as **splitting ops** (PIECEWISE, never FULL). Our first config lacked splitting_ops → the PLE lookup got captured → first a pinned-copy assert, then (with `cudagraph_copy_inputs:true`) a stride assert (`size 3==3, stride 8192==8193`). Nested `-cc.splitting_ops='[...]'` arrives as a *string* in this vLLM build and pydantic rejects it; the working form is the full-dict `--compilation-config '{"cudagraph_mode":"PIECEWISE","splitting_ops":[...12 ops incl. "vllm::ple_mmap_lookup"],"cudagraph_capture_sizes":[1,2]}'`.
+
+### Boot facts (final configuration)
+
+- Containers: `qwen38-rayhead` (ray head, 0 GPU) + `qwen38-vllm-tp2-r0` (ray node + driver + shard 0) on spark1; `qwen38-vllm-tp2-r1` (ray node, shard 1 actor) on spark2. All `--network host` (CX rail IPs 10.0.1.1/10.0.1.2), `--cap-add SYS_PTRACE --cap-add IPC_LOCK`, PLE mmap env (`VLLM_PLE_MMAP=1`, workers 64), NCCL env (IB over `rocep1s0f1`, no GID pin — auto-select after the GID-drift lesson).
+- 512K ctx default, YaRN factor 2.0 (4.0 @ 1M) via `--hf-overrides`; MTP spec 3; chunked prefill 8192; `--long-prefill-token-threshold 4096`; prefix caching on; `--kv-cache-dtype auto` (bf16 for qwen4_exp); PIECEWISE cudagraphs with the 12-op `splitting_ops` list from the blazux recipe (PLE lookup outside the graph).
+- Boot: NCCL comm init OK on both ranks (~1.7 s), model shards loaded (206 safetensors per node, ~4 min from NVMe), torch.compile cache (~20 s), **GPU KV cache 3,978,885 tokens → 7.77× concurrency @ 512K**.
+- PLE mmap confirmed live on both workers (`vllm_ple_mmap.py` stats lines; `PLE mmap patch applied to ...Qwen3_8FlashNextNGramEmbedding`).
+
+### Status — LIVE
+
+- API: `http://192.168.0.211:8000/v1` · model `qwen3.8-flash-next` · `max_model_len` 512000.
+- NCCL: `Using network IB` / `NET/IB : Using [0]rocep1s0f1:1/RoCE` on both ranks.
+- GPU KV cache: **3,980,387 tokens → 7.77× @ 512K**.
+- Single-stream (code, 374 tok, 12.01 s): **31.14 t/s**.
+- 8 concurrent (128 tok each, 13.79 s wall): **74.28 tok/s aggregate**.
+- Memory: spark1 117/121 used / 4 avail; spark2 111/121 used / 9 avail.
+- See `docs/vllm-perf.md`. Below SGLang TP2 (40–44 single / 183–234 agg) as expected: bf16 KV, PLE from disk, PIECEWISE graphs. In the same single-stream ballpark as SGLang TP1 NVMe-PLE (~31) and llama.cpp MTP (~27–32).

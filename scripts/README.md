@@ -43,5 +43,32 @@ ssh spark1 'pkill -f "[l]lama-server"; sleep 3; setsid nohup bash ~/qwen3.8-flas
 | `sglang/spark_serve_tp1_nvme.sh` | Single-Spark SGLang TP1 with PLE streamed from NVMe (sglang#36567): env `MAX_RUNNING` (4), `CTX` (1048576), `CHUNK` (1024), `MAX_TOTAL` (2097152), `MEM_FRACTION` (0.88), NVFP4 KV, YaRN 1M. |
 | `sglang/apply_ple_nvme_patches.py` | Applies sglang#36567 (PLE-NVMe feature only) into the patched image build. |
 | `sglang/pr36567/` | The PR's new modules (`qwen4_ple_nvme.py`, `qsa_decode.py`). |
+| `vllm_tp2.sh` | vLLM TP2 on 2× Spark (stable Ray cluster, PLE mmap, MTP 3, 512K). `RANK=0` spark1 / `RANK=1` spark2. |
 
-Full SGLang runbook: `docs/sglang-deployment.md` · perf results: `docs/sglang-perf.md`.
+Full SGLang runbook: `docs/sglang-deployment.md` · perf results: `docs/sglang-perf.md`. vLLM: `docs/vllm-perf.md`.
+
+## vLLM TP2 deployment (2× Spark, stable-cluster design)
+
+`vllm_tp2.sh` — serves Qwen3.8-Flash-Next NVFP4 with vLLM tensor-parallel-2 across both Sparks.
+Run on **each node**: `RANK=0 bash vllm_tp2.sh` (spark1) | `RANK=1 bash vllm_tp2.sh` (spark2).
+API on spark1:8000 (host network). Requires the **`qwen38-flash-dgx-ray`** image (blazux base +
+`pip install --no-deps ray`) on both nodes.
+
+| Piece | Purpose |
+|---|---|
+| `qwen38-rayhead` (spark1) | Ray head, `--num-gpus=0`, control plane only. **Never recreated by the script if running** (recreation regenerates the cluster ID and kills every connected raylet). |
+| `qwen38-vllm-tp2-r0` (spark1) | `ray start --address` (owns spark1 GPU) + `vllm serve` (driver + shard 0). Engine failures restart only this container. |
+| `qwen38-vllm-tp2-r1` (spark2) | `ray start --address` (owns spark2 GPU) + sleep; hosts the shard-1 actor. |
+
+Hard-won flags (each one was a boot blocker):
+- `--entrypoint vllm ... serve <snapshot>` — the committed ray layer inherits the builder's `bash` entrypoint.
+- `RAY_ADDRESS=10.0.1.1:6379` + `VLLM_HOST_IP=<node>` — `address="auto"` silently starts a bogus single-node local ray.
+- Local `ray start` inside the vLLM container — ray 2.58 resolves the driver's node via local raylet sockets (`/tmp/ray`); without one: `No node info found`.
+- `--device /dev/infiniband/rdma_cm --device /dev/infiniband/uverbs0..2` — `--gpus all` does not inject RDMA devices.
+- `--ulimit memlock=-1 --ulimit stack=67108864` — the 8 MB default kills `ibv_create_cq` (RDMA CQ) with ENOMEM.
+- `--compilation-config '{"cudagraph_mode":"PIECEWISE","splitting_ops":[...12 ops incl. "vllm::ple_mmap_lookup"]}'` — PLE gather is a CPU op and must stay outside the CUDA graph. Nested `-cc.splitting_ops=...` arrives as a string in this vLLM build and pydantic rejects it.
+- Defaults: 512K ctx (YaRN 2.0; 1M auto → factor 4.0), MTP=3, GPU_MEM=0.85, SEQS=16.
+
+Knobs (env): `CTX` (512000/1000000), `MTP` (0=off), `SEQS`, `GPU_MEM`, `MASTER_ADDR/PORT`.
+Notes: KV is bf16-only for qwen4_exp in vLLM (~30 GiB per 1M ctx) → concurrency is memory-bound;
+~3.98M-token KV pool observed at 512K. `NCCL_IB_GID_INDEX` must NOT be set (drifts after reboots).
