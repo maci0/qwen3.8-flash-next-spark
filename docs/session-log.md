@@ -312,3 +312,18 @@ Single-Spark SGLang TP1 NVMe-PLE, final configuration (env-driven, `scripts/sgla
 - **KV pool ladder at 1M ctx**: bf16 454,592 → fp8_e4m3 899,776 → nvfp4 1,521,408 (mem 0.84) → **nvfp4 1,900,672 (mem 0.88)** — ≈2M as requested.
 - **Concurrency**: `max_running_requests` auto-clamps — 2 at mem 0.84, **4 at mem 0.88**. The binding limit at full 1M ctx is the **GDN/mamba state pool**, not the KV pool; more concurrent clients need shorter per-client contexts (e.g. 8× 262K) sharing the big pool.
 - Memory 109/121 used / 12 avail (0.88 fits; no earlyoom). Sanity completion OK (~2.8 s). Boot ~11 min at 1M.
+
+
+## Phase 23 — Full documentation pass (2026-08-30)
+
+Final state of everything:
+
+**Live (spark1:8888)**: single-Spark SGLang TP1, NVFP4 checkpoint, PLE n-gram table streamed from NVMe (47.68 GiB off-RAM), 1M ctx (YaRN), NVFP4 KV, pool 1,900,672 tokens, 4 concurrent, NEXTN 3/1/4, ~31 t/s single-stream. Memory 109/121, 12 avail. (Llama.cpp GGUF MTP server: stopped; SGLang TP2 cluster: stopped.)
+
+**Host config note**: this machine's Kimi Code `~/.kimi-code/config.toml` was updated (`support_efforts = ["low","medium","xhigh"]` + `default_effort = "low"` on `vllm-local/Qwen3.8-Flash-Next-NVFP4` and the `omniroute` variant) so the harness exposes effort levels instead of a bare on/off toggle. Backed up as `config.toml.20260830-022250.bak`; apply via `/reload`. This is a host-local change, not in the repo.
+
+**Stack summary (all documented in this repo)**:
+1. SGLang NVFP4 TP2 (2× Spark, 1M ctx, 183–234 agg) — the flagship, stopped.
+2. SGLang TP1 NVMe-PLE (1 Spark, 1M ctx, ~50 agg) — the single-Spark NVFP4 path, **live**.
+3. llama.cpp GGUF MTP (1 Spark, 4-bit, ~32 t/s) — the light fallback.
+4. GLM-5.3-Flash feasibility — separate project.
