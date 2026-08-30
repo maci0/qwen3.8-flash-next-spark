@@ -35,6 +35,8 @@ EXTRA_ARGS=--disable-prefill-cuda-graph --cuda-graph-max-bs 28 --disable-cuda-gr
 | fp8 + `--speculative-attention-mode decode` | 147.6–155.2 tok/s | 12.7–14.3 s | ~40–44 t/s |
 | **+ `--enable-linear-replayssm-spec` (FINAL)** | **183–234 tok/s (noisy band)** | 9.4–11.9 s | **~81–103 t/s** |
 
+**Single-Spark SGLang TP1 with PLE streamed from NVMe** (sglang#36567, mmap backend, NEXTN 3/1/4, CUDA graphs off, `max_running_requests=1`): **~21 t/s single-stream** (600-token code gen = 21.5 t/s; 256-token = 20.6). Requests serialize by design (cap 1), so "aggregate" ≈ single-stream (~19 tok/s @ rate-8 arrivals, E2E ~94 s). Memory 104/121 used / 16 avail — the 47.7 GiB PLE table is not resident. vs llama.cpp single-Spark GGUF MTP (~27–32 t/s): SGLang TP1 trades ~30% speed for NVFP4 quality + true NVMe streaming. Tuning room: io_uring backend, higher concurrency, CUDA graphs, larger ctx.
+
 ## Lever A/B series (2026-08-30, each = base + one lever, 24 concurrent)
 
 | Lever | Aggregate (24c) | E2E | Verdict |

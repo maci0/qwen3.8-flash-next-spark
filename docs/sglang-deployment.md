@@ -77,7 +77,7 @@ The **NVFP4 checkpoint fits one Spark (121 GiB) if the 47.7 GiB FP8 PLE table is
 
 - Applied to the patched image (see `scripts/sglang/apply_ple_nvme_patches.py` — feature only, not the PR's SM121 decode kernel). Boot log: `Qwen4 PLE NVMe table: 47.68 GiB across 10 files (320001536 rows)`.
 - Launch: `scripts/sglang/spark_serve_tp1_nvme.sh` — env `SGLANG_QWEN4_PLE_NVME_PATH=<snapshot>`, `SGLANG_QWEN4_PLE_NVME_BACKEND=mmap|io_uring`.
-- Measured: **20.6 t/s** single-stream (NEXTN on, mmap backend), 105/121 GB used / 16 avail, ~4-min boot.
+- Measured: **~21 t/s single-stream** (600-token code gen = 21.5), 104/121 GB used / 16 avail (PLE not resident), ~4-min boot. `max_running_requests=1` per the PR recipe serializes requests.
 - Note: io_uring backend needs the PR's `sglang-storage` Rust extension + a permissive container seccomp profile; mmap is the zero-build correctness path.
 
 ## Gotchas / notes

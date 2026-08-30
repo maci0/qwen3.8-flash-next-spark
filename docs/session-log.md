@@ -278,3 +278,16 @@ Server recovered and re-verified after the softlock + GID fix:
 - **Launch**: `scripts/sglang/spark_serve_tp1_nvme.sh` — TP1, NVFP4, `SGLANG_QWEN4_PLE_NVME_BACKEND=mmap` (no Rust build; io_uring is the PR's primary backend and needs the Rust ext + seccomp allowance), NEXTN 3/1/4, CUDA graphs off (per the PR example).
 - **Measured**: 256-token code gen = **20.6 t/s** single-stream; memory 105/121 used / 16 avail (PLE not resident). The community's only prior single-Spark SGLang NVMe-PLE datapoint was 14–15 t/s (no MTP) — we beat it with NEXTN on.
 - **Remaining**: io_uring backend (build the `sglang-storage` Rust ext + `--security-opt seccomp=unconfined`), higher context than 32K, CUDA graphs with the NVMe prefetch overlap, and re-adding the PLE-NVMe env to the recipe `.env` for a managed launch.
+
+
+## Phase 22b — TP1 NVMe-PLE benchmark (2026-08-30)
+
+| Metric | Value |
+|---|---|
+| Single-stream (600-tok code gen) | **21.5 t/s** (256-tok: 20.6) |
+| Aggregate @ rate-8, 24 prompts | ~18.9 tok/s — serialized (`max_running_requests=1` per the PR recipe) |
+| E2E mean (queued) | ~94 s |
+| Memory | 104/121 used, 16 avail, ~17 GB page cache (PLE rows cached on read) |
+| Boot | ~4 min (no 47.7 GiB PLE load) |
+
+PLE residency check: `used` 104 GB excludes the 47.7 GiB table (mmap'd; only touched rows enter page cache). Comparison: llama.cpp GGUF MTP single-Spark = ~27–32 t/s (4-bit quality) vs this = ~21 t/s (NVFP4 quality, true NVMe streaming). Tuning room: io_uring backend (Rust ext + seccomp), raise `--max-running-requests`, re-enable CUDA graphs, larger ctx.
