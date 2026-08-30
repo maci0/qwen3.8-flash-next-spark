@@ -261,3 +261,10 @@ Server recovered and re-verified after the softlock + GID fix:
 - Root cause: the model **thinks by default** (xhigh effort) — tiny prompts like "hi" spend the whole budget on a reasoning trace with empty `content`, and pay ~8 s of TTFT+thinking overhead.
 - Fix (client-side, instant): `"chat_template_kwargs": {"enable_thinking": false}` → **0.39 s** with a direct answer; `"reasoning_effort": "low"` → 1.2 s with a short trace. Longer generations still run at ~80–100 t/s after first tokens.
 - Optional server default (10-min reboot): `--default-chat-template-kwargs '{"enable_thinking": false}'` (tonyd2wild's launcher does this) — not applied; thinking stays opt-in via the same kwargs.
+
+
+## Phase 21 — Back to single-Spark llama.cpp; SGLang TP1 feasibility (2026-08-30)
+
+- SGLang TP2 cluster shut down (`./stop.sh`, both nodes clean). Single-Spark **llama.cpp MTP server restored** on `spark1:8080` (grafted UD-Q4_K_XL MTP GGUF, PR #27836 build, 16K×1, f16 KV, `draft-mtp` n-max 3) — verified: "Hello!" in 2.1 s, MTP draft context active, 113/121 GB used.
+- **SGLang single-Spark (TP1) feasibility**: NVFP4 checkpoint = 126 GiB total (PLE FP8 = 47.7 GiB, non-PLE = ~78 GiB). TP1 fits 121 GiB **only with PLE offloaded**: host-pinned (`--ple-offload-embedding`, merged; same UMA pool, out of the CUDA static pool) ≈ 104–119 GiB knife-edge; **or streamed from SSD** (non-resident) ≈ 78 GiB + KV → comfortable.
+- **PLE-from-SSD in SGLang**: shipped option = host-pinned RAM only. True NVMe streaming = **open PR sgl-project/sglang#36567** (unmerged; patchable into the SM121 image like our existing patches). Community single-Spark SGLang NVMe-PLE datapoint: ~14–15 t/s (no MTP); vLLM's 181-agg run used the same PLE-mmap-off-NVMe pattern. llama.cpp's `-ot "per_layer_token_embd.weight=CPU"` + mmap remains the only *shipped* disk-streaming path (working, ~25–32 t/s with MTP).
