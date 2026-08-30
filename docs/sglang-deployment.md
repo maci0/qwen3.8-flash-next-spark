@@ -1,6 +1,6 @@
 # SGLang NVFP4 TP2 Deployment — Qwen3.8-Flash-Next on 2× DGX Spark
 
-Status: **LIVE and validated 2026-08-30**. OpenAI API at `http://<head>:8888`, 1M context, NVFP4 checkpoint, fully Docker-contained.
+Status: **validated 2026-08-30**, currently **stopped** (the two Sparks are running vLLM TP2 — see [`docs/vllm-perf.md`](vllm-perf.md)). OpenAI API when this stack is up: `http://<head>:8888`, 1M context, NVFP4 checkpoint, fully Docker-contained.
 
 ## What this is
 

@@ -318,15 +318,16 @@ Single-Spark SGLang TP1 NVMe-PLE, final configuration (env-driven, `scripts/sgla
 
 Final state of everything:
 
-**Live (spark1:8888)**: single-Spark SGLang TP1, NVFP4 checkpoint, PLE n-gram table streamed from NVMe (47.68 GiB off-RAM), 1M ctx (YaRN), NVFP4 KV, pool 1,900,672 tokens, 4 concurrent, NEXTN 3/1/4, ~31 t/s single-stream. Memory 109/121, 12 avail. (Llama.cpp GGUF MTP server: stopped; SGLang TP2 cluster: stopped.)
+**Was live (spark1:8888)**: single-Spark SGLang TP1, NVFP4 checkpoint, PLE n-gram table streamed from NVMe (47.68 GiB off-RAM), 1M ctx (YaRN), NVFP4 KV, pool 1,900,672 tokens, 4 concurrent, NEXTN 3/1/4, ~31 t/s single-stream. Memory 109/121, 12 avail. Stopped to free the nodes for vLLM TP2 (Phase 24). Llama.cpp GGUF MTP server: stopped; SGLang TP2 cluster: stopped.
 
 **Host config note**: this machine's Kimi Code `~/.kimi-code/config.toml` was updated (`support_efforts = ["low","medium","xhigh"]` + `default_effort = "low"` on `vllm-local/Qwen3.8-Flash-Next-NVFP4` and the `omniroute` variant) so the harness exposes effort levels instead of a bare on/off toggle. Backed up as `config.toml.20260830-022250.bak`; apply via `/reload`. This is a host-local change, not in the repo.
 
 **Stack summary (all documented in this repo)**:
 1. SGLang NVFP4 TP2 (2× Spark, 1M ctx, 183–234 agg) — the flagship, stopped.
-2. SGLang TP1 NVMe-PLE (1 Spark, 1M ctx, ~50 agg) — the single-Spark NVFP4 path, **live**.
-3. llama.cpp GGUF MTP (1 Spark, 4-bit, ~32 t/s) — the light fallback.
-4. GLM-5.3-Flash feasibility — separate project.
+2. SGLang TP1 NVMe-PLE (1 Spark, 1M ctx, ~50 agg) — the single-Spark NVFP4 path, stopped.
+3. llama.cpp GGUF MTP (1 Spark, 4-bit, ~32 t/s) — the light fallback, stopped.
+4. **vLLM TP2 (2× Spark, 512K, 31 t/s / 74 agg) — live at spark1:8000** (Phase 24).
+5. GLM-5.3-Flash feasibility — separate project.
 
 
 ## Phase 24 — vLLM TP2 across 2× Spark: the Ray/NCCL/CUDA-graph gauntlet (2026-08-30)

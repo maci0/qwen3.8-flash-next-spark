@@ -30,7 +30,7 @@ Memory after boot: spark1 117/121 used / 4 avail; spark2 111/121 used / 9 avail.
 | SGLang TP1 NVMe-PLE | 1M | NVFP4 | NVMe mmap | ~31 | 43–51 @ 4 conc | one Spark |
 | llama.cpp GGUF MTP | 16K | f16 | CPU mmap | 27–32 | n/a | 4-bit weights |
 
-vLLM TP2 is in the same single-stream ballpark as SGLang TP1 and llama.cpp, well below SGLang TP2. The gap is expected: bf16 KV (no NVFP4 KV path), PLE from disk, and PIECEWISE graphs with the PLE lookup as a splitting op. 8-way concurrent already saturates decode (~9.6 t/s each, 74 agg); 16-way `bench_serving` is the next measurement.
+vLLM TP2 is in the same single-stream ballpark as SGLang TP1 and llama.cpp, well below SGLang TP2. The gap is expected: bf16 KV (no NVFP4 KV path), PLE from disk, and PIECEWISE graphs with the PLE lookup as a splitting op. 8-way concurrent already saturates decode (~9.6 t/s each, 74 agg).
 
 ## Topology (do not collapse)
 

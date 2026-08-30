@@ -11,7 +11,7 @@ One Spark + smaller model→ Qwen3.8-27B-class NVFP4     ← fallback (Plan C)
 
 ## Plan A — SGLang, 2× Spark TP2, NVFP4 (full quality) — ✅ DONE 2026-08-30
 
-Proven by two independent community runs of this exact checkpoint, then deployed here. See **[`docs/sglang-deployment.md`](sglang-deployment.md)** (runbook) + **[`docs/sglang-perf.md`](sglang-perf.md)** (tuning). Live at `spark1:8888`: **1M ctx, ~40–44 t/s single-stream, ~148–155 tok/s aggregate, NVFP4/fp8 KV, PLE offload, Docker-contained**.
+Proven by two independent community runs of this exact checkpoint, then deployed here. See **[`docs/sglang-deployment.md`](sglang-deployment.md)** (runbook) + **[`docs/sglang-perf.md`](sglang-perf.md)** (tuning). Measured at `spark1:8888`: **1M ctx, ~40–44 t/s single-stream, ~148–155 tok/s aggregate, NVFP4/fp8 KV, PLE offload, Docker-contained**. Currently **stopped** — the live stack is vLLM TP2 (`spark1:8000`, 512K, see [`docs/vllm-perf.md`](vllm-perf.md)).
 
 1. **Build SGLang with qwen4_exp support** (both units): PR [sgl-project/sglang#36497](https://github.com/sgl-project/sglang/pull/36497) (branch `qwen4-main-squashed@73a2552`) — not in any release — plus:
    - one-line sm_121 QSA gate patch ([#36531](https://github.com/sgl-project/sglang/issues/36531));
