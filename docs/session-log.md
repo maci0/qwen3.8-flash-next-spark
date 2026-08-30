@@ -291,3 +291,14 @@ Server recovered and re-verified after the softlock + GID fix:
 | Boot | ~4 min (no 47.7 GiB PLE load) |
 
 PLE residency check: `used` 104 GB excludes the 47.7 GiB table (mmap'd; only touched rows enter page cache). Comparison: llama.cpp GGUF MTP single-Spark = ~27–32 t/s (4-bit quality) vs this = ~21 t/s (NVFP4 quality, true NVMe streaming). Tuning room: io_uring backend (Rust ext + seccomp), raise `--max-running-requests`, re-enable CUDA graphs, larger ctx.
+
+
+## Phase 22c — TP1 concurrency scaling + PLE cache semantics (2026-08-30)
+
+**max_running_requests scaling** (262K ctx, NVMe-PLE mmap backend, NEXTN): N=1 → 18.9 tok/s aggregate; N=4 → **43.0**; N=8 → **50.7**. Single-stream ~31 t/s warm. Sweet spot ~4–8; diminishing returns beyond 4 (the NVMe PLE gather and single-GPU compute become the limit).
+
+**"Some n-grams in RAM, some from disk?" — two mechanisms:**
+1. **Already implicit with the mmap backend**: reads go through the OS page cache — hot rows stay resident (reclaimable), repeats hit RAM, the rest stays on the NVMe. No explicit control.
+2. **Explicit knob (io_uring backend)**: `SGLANG_QWEN4_PLE_NVME_CACHE_PAGES=N` — an app-level LRU of 4096-byte pages: ~N×4 KB of hot rows pinned in RAM while the rest streams from disk. E.g. 16 GiB budget → 4,194,304 pages. Requires the io_uring Rust extension + permissive container seccomp. N-gram rows are Zipfian, so a cache catches the frequent n-grams.
+
+Context: native 262K confirmed from the checkpoint config (`text_config.max_position_embeddings = 262144`), GGUF metadata, and the model card; 1M = YaRN extension (what the TP2 deployment used).

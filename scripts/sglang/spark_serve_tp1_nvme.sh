@@ -20,7 +20,7 @@ docker run -d --name qwen38-tp1 --gpus all --ipc host \
     --model-path "$SNAP_CT" \
     --quantization modelopt_fp4 --fp4-gemm-backend flashinfer_cutlass \
     --page-size 64 --mamba-radix-cache-strategy extra_buffer --mamba-track-interval 64 \
-    --chunked-prefill-size 512 --max-running-requests 1 --context-length 32768 \
+    --chunked-prefill-size "${CHUNK:-1024}" --max-running-requests "${MAX_RUNNING:-4}" --context-length "${CTX:-262144}" \
     --mem-fraction-static 0.84 \
     --speculative-algorithm NEXTN --speculative-num-steps 3 --speculative-eagle-topk 1 \
     --speculative-num-draft-tokens 4 \
