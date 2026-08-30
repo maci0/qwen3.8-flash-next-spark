@@ -71,6 +71,15 @@ First boot: pulls base image (~30 GB), builds patched image on both nodes, downl
 
 More in [`docs/sglang-perf.md`](sglang-perf.md).
 
+## Single-Spark SGLang with PLE streamed from NVMe (sglang#36567)
+
+The **NVFP4 checkpoint fits one Spark (121 GiB) if the 47.7 GiB FP8 PLE table is read from disk instead of loaded** (~78 GiB resident). Open PR [#36567](https://github.com/sgl-project/sglang/pull/36567) implements exactly that (TP1 only, FP8 PLE):
+
+- Applied to the patched image (see `scripts/sglang/apply_ple_nvme_patches.py` — feature only, not the PR's SM121 decode kernel). Boot log: `Qwen4 PLE NVMe table: 47.68 GiB across 10 files (320001536 rows)`.
+- Launch: `scripts/sglang/spark_serve_tp1_nvme.sh` — env `SGLANG_QWEN4_PLE_NVME_PATH=<snapshot>`, `SGLANG_QWEN4_PLE_NVME_BACKEND=mmap|io_uring`.
+- Measured: **20.6 t/s** single-stream (NEXTN on, mmap backend), 105/121 GB used / 16 avail, ~4-min boot.
+- Note: io_uring backend needs the PR's `sglang-storage` Rust extension + a permissive container seccomp profile; mmap is the zero-build correctness path.
+
 ## Gotchas / notes
 
 - **UMA softlocks**: booting under a full page cache wedges the box (kernel pings, sshd starved, ~10 min auto-reboot or manual power cycle). Always drop caches before boot. Four incidents logged.
