@@ -41,7 +41,11 @@ EXTRA_ARGS=--disable-prefill-cuda-graph --cuda-graph-max-bs 28 --disable-cuda-gr
 |---|---|---|
 | 1 | 18.9 tok/s (serialized) | ~21 t/s (first-boot cold) |
 | 4 | **43.0 tok/s** | ~31 t/s (warm) |
-| **8** | **50.7 tok/s** | — |
+| 8 | **50.7 tok/s** | — |
+
+**Final TP1 config (1M ctx, NVFP4 KV, PLE from NVMe)**: `MEM_FRACTION=0.88`, `MAX_RUNNING=4` (auto-clamped — the GDN/mamba state pool is the concurrency limit at full 1M ctx, not the KV pool), pool **1,900,672 tokens** (~2M-class), memory 109/121 used / 12 avail.
+
+**KV-dtype pool ladder at 1M ctx** (mem 0.84 unless noted): bf16 454K → fp8_e4m3 900K → **nvfp4 1.52M** → **nvfp4 1.9M @ mem 0.88**. `max_running_requests`: 2 @ mem 0.84 → 4 @ 0.88 (mamba/GDN state pool scales with the fraction).
 
 Sweet spot ~4–8 concurrent (1→4 = +128%, 4→8 = +18%; bottleneck shifts to the NVMe PLE gather / single-GPU compute). Memory 105/121 used / 16 avail — the 47.7 GiB PLE table is not resident. vs llama.cpp single-Spark GGUF MTP (~27–32 t/s): SGLang TP1 trades ~speed for NVFP4 quality + true NVMe streaming. Tuning room: io_uring backend, `SGLANG_QWEN4_PLE_NVME_CACHE_PAGES` LRU (see below), CUDA graphs, 1M ctx via YaRN.
 

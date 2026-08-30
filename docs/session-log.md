@@ -302,3 +302,13 @@ PLE residency check: `used` 104 GB excludes the 47.7 GiB table (mmap'd; only tou
 2. **Explicit knob (io_uring backend)**: `SGLANG_QWEN4_PLE_NVME_CACHE_PAGES=N` — an app-level LRU of 4096-byte pages: ~N×4 KB of hot rows pinned in RAM while the rest streams from disk. E.g. 16 GiB budget → 4,194,304 pages. Requires the io_uring Rust extension + permissive container seccomp. N-gram rows are Zipfian, so a cache catches the frequent n-grams.
 
 Context: native 262K confirmed from the checkpoint config (`text_config.max_position_embeddings = 262144`), GGUF metadata, and the model card; 1M = YaRN extension (what the TP2 deployment used).
+
+
+## Phase 22d — TP1 final config: 1M ctx + NVFP4 KV + ~2M pool (2026-08-30)
+
+Single-Spark SGLang TP1 NVMe-PLE, final configuration (env-driven, `scripts/sglang/spark_serve_tp1_nvme.sh`):
+
+- **1M ctx** via YaRN (`--json-model-override-args` factor 4 + `SGLANG_ALLOW_OVERWRITE_LONGER_CONTEXT_LEN=1`), **NVFP4 KV** (`--kv-cache-dtype nvfp4` — user requirement), PLE streamed from NVMe (mmap backend), NEXTN 3/1/4, CUDA graphs off.
+- **KV pool ladder at 1M ctx**: bf16 454,592 → fp8_e4m3 899,776 → nvfp4 1,521,408 (mem 0.84) → **nvfp4 1,900,672 (mem 0.88)** — ≈2M as requested.
+- **Concurrency**: `max_running_requests` auto-clamps — 2 at mem 0.84, **4 at mem 0.88**. The binding limit at full 1M ctx is the **GDN/mamba state pool**, not the KV pool; more concurrent clients need shorter per-client contexts (e.g. 8× 262K) sharing the big pool.
+- Memory 109/121 used / 12 avail (0.88 fits; no earlyoom). Sanity completion OK (~2.8 s). Boot ~11 min at 1M.

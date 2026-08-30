@@ -40,5 +40,8 @@ ssh spark1 'pkill -f "[l]lama-server"; sleep 3; setsid nohup bash ~/qwen3.8-flas
 | `patch_miaai_rsync.py` | Patches the MiaAI recipe's weight rsync to exclude the root-owned HF `trees/` cache dir (rsync code-23 fix). |
 | `sglang_ab.sh` | One A/B cycle: stop → drop caches (privileged docker, both nodes) → set `EXTRA_ARGS` → boot → `bench_serving` + timed single-stream. Usage: `sglang_ab.sh <label> "<EXTRA_ARGS>"`. |
 | `sglang_ab_all.sh` | Runs a sequence of A/B cycles with clean attribution (base + one lever each). |
+| `sglang/spark_serve_tp1_nvme.sh` | Single-Spark SGLang TP1 with PLE streamed from NVMe (sglang#36567): env `MAX_RUNNING` (4), `CTX` (1048576), `CHUNK` (1024), `MAX_TOTAL` (2097152), `MEM_FRACTION` (0.88), NVFP4 KV, YaRN 1M. |
+| `sglang/apply_ple_nvme_patches.py` | Applies sglang#36567 (PLE-NVMe feature only) into the patched image build. |
+| `sglang/pr36567/` | The PR's new modules (`qwen4_ple_nvme.py`, `qsa_decode.py`). |
 
 Full SGLang runbook: `docs/sglang-deployment.md` · perf results: `docs/sglang-perf.md`.
